@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PDF 自动化解析测试台</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 32px;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .subtitle {
+        color: #64748b;
+        font-size: 14px;
+        margin-bottom: 32px;
+      }
+
+      .panel {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 24px;
+        border: 1px solid #e2e8f0;
+      }
+
+      .panel h2 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .control-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        flex: 1;
+        min-width: 300px;
+      }
+
+      .control-group.primary {
+        flex: 2;
+        min-width: 400px;
+      }
+
+      input[type="file"] {
+        flex: 1;
+        min-width: 200px;
+        padding: 10px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #ffffff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      input[type="file"]:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      input[type="password"],
+      input[type="text"] {
+        flex: 1;
+        min-width: 180px;
+        padding: 10px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #ffffff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      input[type="password"]:focus,
+      input[type="text"]:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        background: #2563eb;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+
+      button.secondary {
+        background: #10b981;
+      }
+
+      button:disabled {
+        background: #cbd5e1;
+        color: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      }
+
+      button.secondary:hover:not(:disabled) {
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      th {
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      td {
+        padding: 16px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
+        font-size: 14px;
+      }
+
+      tbody tr {
+        transition: background-color 0.15s ease;
+      }
+
+      tbody tr:hover {
+        background: rgba(102, 126, 234, 0.05);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .status {
+        margin-top: 16px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        background: #f1f5f9;
+        border-left: 4px solid #cbd5e1;
+      }
+
+      .status.info {
+        background: #eff6ff;
+        border-left-color: #3b82f6;
+        color: #1e40af;
+      }
+
+      .status.success {
+        background: #f0fdf4;
+        border-left-color: #10b981;
+        color: #065f46;
+      }
+
+      .status.error {
+        background: #fef2f2;
+        border-left-color: #ef4444;
+        color: #991b1b;
+      }
+
+      .progress-wrapper {
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      .progress-wrapper.active {
+        display: block;
+      }
+
+      .progress-label {
+        font-size: 14px;
+        color: #475569;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .progress-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #4f46e5 0%, #14b8a6 100%);
+        transition: width 0.3s ease;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 16px;
+        }
+
+        .panel {
+          padding: 20px;
+        }
+
+        .control-group {
+          min-width: 100%;
+        }
+
+        .control-group.primary {
+          min-width: 100%;
+        }
+
+        table {
+          font-size: 12px;
+        }
+
+        th,
+        td {
+          padding: 12px 8px;
+        }
+
+        button {
+          font-size: 13px;
+          padding: 8px 16px;
+        }
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(800px, 90vw);
+        max-height: 85vh;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      }
+
+      dialog h3 {
+        margin: 0;
+        padding: 24px 28px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 20px;
+        font-weight: 600;
+        border-radius: 16px 16px 0 0;
+      }
+
+      dialog .modal-body {
+        padding: 24px 28px;
+        overflow-y: auto;
+        max-height: calc(85vh - 140px);
+        white-space: pre-wrap;
+        line-height: 1.8;
+        color: #334155;
+        font-size: 14px;
+      }
+
+      dialog > div:last-child {
+        padding: 20px 28px;
+        background: #f8fafc;
+        border-radius: 0 0 16px 16px;
+        border-top: 1px solid #e2e8f0;
+      }
+
+      dialog::backdrop {
+        background-color: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(4px);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>文档自动化解析测试台</h1>
+    <p class="subtitle">上传 PDF 或 EPUB 文件，自动提取目录章节并生成概述</p>
+
+    <section class="panel">
+      <h2>📄 文件上传与解析</h2>
+      <div class="controls">
+        <div class="control-group primary">
+          <input type="file" id="pdfFile" accept="application/pdf,application/epub+zip,.pdf,.epub" />
+          <button id="cleanTocButton">步骤1: 目录清洗</button>
+          <button id="extractButton" disabled>步骤2: 解析内容与统计</button>
+          <button id="testTranslateButton" style="background: #10b981; color: white;">🌐 测试翻译</button>
+        </div>
+      </div>
+      <div class="status" id="statusArea"></div>
+    </section>
+
+    <section class="panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+        <h2 style="margin: 0;">📊 解析结果</h2>
+        <button id="ingestButton" class="secondary" disabled style="font-size: 15px; padding: 12px 24px;">
+          📝 基本信息入库
+        </button>
+      </div>
+      <div id="progressWrapper" class="progress-wrapper">
+        <div id="progressLabel" class="progress-label">准备中...</div>
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>目录标题</th>
+            <th>抽取内容</th>
+            <th>统计字数</th>
+            <th>翻译</th>
+            <th>章节概述</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody">
+          <tr>
+            <td colspan="5" style="text-align: center; color: #94a3b8; padding: 40px;">
+              等待解析结果...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <dialog id="contentDialog">
+      <h3 id="dialogTitle"></h3>
+      <div class="modal-body" id="dialogContent"></div>
+      <div style="text-align: right">
+        <button id="closeDialog">关闭</button>
+      </div>
+    </dialog>
+
+    <dialog id="tocCompareDialog" style="max-width: 90vw; width: 1200px; padding: 0; border-radius: 12px;">
+      <div style="padding: 24px; border-bottom: 1px solid #e2e8f0;">
+        <h3 style="margin: 0; font-size: 20px; font-weight: 600;">目录清洗对比</h3>
+      </div>
+      <div style="padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-height: 70vh; overflow-y: auto;">
+        <div>
+          <h4 style="margin: 0 0 16px 0; color: #64748b; font-size: 14px; font-weight: 600;">清洗前 (共 <span id="rawCount">0</span> 项)</h4>
+          <div id="rawTocList" style="background: #f8fafc; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.8; max-height: 60vh; overflow-y: auto;"></div>
+        </div>
+        <div>
+          <h4 style="margin: 0 0 16px 0; color: #10b981; font-size: 14px; font-weight: 600;">清洗后 (共 <span id="cleanedCount">0</span> 项)</h4>
+          <div id="cleanedTocList" style="background: #f0fdf4; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.8; max-height: 60vh; overflow-y: auto;"></div>
+        </div>
+      </div>
+      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; text-align: right;">
+        <button id="closeTocDialog" style="padding: 10px 20px; border-radius: 8px; border: none; background: #2563eb; color: white; cursor: pointer;">关闭</button>
+      </div>
+    </dialog>
+
+    <dialog id="translateTestDialog" style="max-width: 90vw; width: 800px; padding: 0; border-radius: 12px;">
+      <div style="padding: 24px; border-bottom: 1px solid #e2e8f0;">
+        <h3 style="margin: 0; font-size: 20px; font-weight: 600;">🌐 翻译测试</h3>
+      </div>
+      <div style="padding: 24px; max-height: 80vh; overflow-y: auto;">
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600;">输入要翻译的文本（非中文）：</label>
+          <textarea id="translateInput" style="width: 100%; min-height: 100px; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-family: inherit;" placeholder="输入英文或其他语言的文本..."></textarea>
+        </div>
+        <div>
+          <label style="display: block; margin-bottom: 8px; font-weight: 600;">翻译结果（中文）：</label>
+          <div id="translateOutput" style="width: 100%; min-height: 100px; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; background: #f8fafc; white-space: pre-wrap; word-wrap: break-word;"></div>
+        </div>
+      </div>
+      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between;">
+        <button id="doTranslateButton" style="padding: 10px 20px; border-radius: 8px; border: none; background: #10b981; color: white; cursor: pointer;">翻译</button>
+        <button id="closeTranslateDialog" style="padding: 10px 20px; border-radius: 8px; border: none; background: #2563eb; color: white; cursor: pointer;">关闭</button>
+      </div>
+    </dialog>
+
+    <script>
+      const cleanTocButton = document.getElementById("cleanTocButton");
+      const extractButton = document.getElementById("extractButton");
+      const testTranslateButton = document.getElementById("testTranslateButton");
+      const pdfFile = document.getElementById("pdfFile");
+      const ingestButton = document.getElementById("ingestButton");
+      const statusArea = document.getElementById("statusArea");
+      const resultsBody = document.getElementById("resultsBody");
+      const dialog = document.getElementById("contentDialog");
+      const dialogTitle = document.getElementById("dialogTitle");
+      const dialogContent = document.getElementById("dialogContent");
+      const closeDialog = document.getElementById("closeDialog");
+      const tocCompareDialog = document.getElementById("tocCompareDialog");
+      const closeTocDialog = document.getElementById("closeTocDialog");
+      const translateTestDialog = document.getElementById("translateTestDialog");
+      const closeTranslateDialog = document.getElementById("closeTranslateDialog");
+      const doTranslateButton = document.getElementById("doTranslateButton");
+      const translateInput = document.getElementById("translateInput");
+      const translateOutput = document.getElementById("translateOutput");
+      const rawTocList = document.getElementById("rawTocList");
+      const cleanedTocList = document.getElementById("cleanedTocList");
+      const rawCount = document.getElementById("rawCount");
+      const cleanedCount = document.getElementById("cleanedCount");
+      const progressWrapper = document.getElementById("progressWrapper");
+      const progressLabel = document.getElementById("progressLabel");
+      const progressFill = document.getElementById("progressFill");
+      let parsedEntries = [];
+      let currentFilename = "";
+      let cleanedTocData = null;
+      let currentFileType = null;
+
+      closeDialog.addEventListener("click", () => dialog.close());
+      closeTocDialog.addEventListener("click", () => tocCompareDialog.close());
+      closeTranslateDialog.addEventListener("click", () => translateTestDialog.close());
+
+      function renderTocCompare(rawToc, cleanedToc) {
+        rawCount.textContent = rawToc.length;
+        cleanedCount.textContent = cleanedToc.length;
+
+        rawTocList.innerHTML = "";
+        rawToc.forEach((item) => {
+          const div = document.createElement("div");
+          div.style.paddingLeft = `${(item.level - 1) * 20}px`;
+          div.style.marginBottom = "4px";
+          div.textContent = `${item.title} (第${item.page}页)`;
+          rawTocList.appendChild(div);
+        });
+
+        cleanedTocList.innerHTML = "";
+        cleanedToc.forEach((item) => {
+          const div = document.createElement("div");
+          div.style.paddingLeft = `${(item.level - 1) * 20}px`;
+          div.style.marginBottom = "4px";
+          div.textContent = `${item.title} (第${item.page}页)`;
+          cleanedTocList.appendChild(div);
+        });
+
+        tocCompareDialog.showModal();
+      }
+
+      function renderStatus(message, type = "info") {
+        statusArea.className = `status ${type}`;
+        const loading = type === "info" && (message.includes("正在") || message.includes("请稍候")) 
+          ? '<span class="loading"></span>' 
+          : '';
+        statusArea.innerHTML = loading + message;
+      }
+
+      function showProgress(total = 0, label = "正在准备入库...") {
+        if (!progressWrapper) return;
+        progressWrapper.classList.add("active");
+        updateProgress(0, total, label);
+      }
+
+      function updateProgress(completed, total, label) {
+        if (!progressWrapper) return;
+        if (!progressWrapper.classList.contains("active")) {
+          progressWrapper.classList.add("active");
+        }
+        if (progressWrapper.style.display !== "block") {
+          progressWrapper.style.display = "block";
+        }
+        const percent = total > 0 ? Math.min(100, Math.max(0, Math.round((completed / total) * 100))) : 0;
+        if (progressFill) {
+          progressFill.style.width = `${percent}%`;
+        }
+        if (progressLabel) {
+          progressLabel.textContent = label || `进度：${completed}/${total} (${percent}%)`;
+        }
+      }
+
+      function hideProgress() {
+        if (!progressWrapper) return;
+        progressWrapper.classList.remove("active");
+        progressWrapper.style.display = "none";
+        if (progressFill) {
+          progressFill.style.width = "0%";
+        }
+      }
+
+      function renderTable(entries) {
+        if (!entries || entries.length === 0) {
+          resultsBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 40px;">未识别到有效目录。</td></tr>`;
+          ingestButton.disabled = true;
+          return;
+        }
+
+        resultsBody.innerHTML = "";
+        ingestButton.disabled = false;
+        for (let index = 0; index < entries.length; index++) {
+          const entry = entries[index];
+          const row = document.createElement("tr");
+
+          // 使用中文标题，如果没有则使用原文
+          const titleCell = document.createElement("td");
+          const displayTitle = entry.title_zh || entry.title;
+          titleCell.textContent = displayTitle;
+          // 如果原文和中文不同，显示提示
+          if (entry.title_zh && entry.title_zh !== entry.title) {
+            titleCell.title = `原文: ${entry.title}`;
+            titleCell.style.color = "#2563eb";
+          }
+
+          const contentCell = document.createElement("td");
+          const viewButton = document.createElement("button");
+          viewButton.textContent = "查看完整内容";
+          viewButton.style.fontSize = "13px";
+          viewButton.style.padding = "6px 12px";
+          viewButton.addEventListener("click", () => {
+            // 显示中文内容，如果没有则显示原文
+            const displayContent = entry.content_zh || entry.content || "(暂无正文内容)";
+            dialogTitle.textContent = displayTitle;
+            dialogContent.textContent = displayContent;
+            // 如果原文和中文不同，在标题中显示提示
+            if (entry.content_zh && entry.content_zh !== entry.content) {
+              dialogTitle.textContent = `${displayTitle} (已翻译)`;
+            }
+            dialog.showModal();
+          });
+          contentCell.appendChild(viewButton);
+
+          const countCell = document.createElement("td");
+          const count = entry.word_count || 0;
+          countCell.innerHTML = `<span style="font-weight: 500; color: #475569;">${count.toLocaleString()}</span> <span style="color: #94a3b8; font-size: 12px;">字</span>`;
+
+          // 翻译按钮列
+          const translateCell = document.createElement("td");
+          // 判断是否已翻译：标题和内容都必须有翻译，且都与原文不同
+          const hasTranslation = entry.title_zh && entry.content_zh && 
+                                 entry.title_zh !== entry.title && entry.content_zh !== entry.content;
+          const isChinese = entry.title && /[\u4e00-\u9fff]/.test(entry.title);
+          
+          if (hasTranslation) {
+            // 已有翻译，显示状态
+            translateCell.innerHTML = '<span style="color: #10b981; font-size: 12px;">✓ 已翻译</span>';
+          } else if (!isChinese && entry.title) {
+            // 非中文，显示翻译按钮
+            const translateButton = document.createElement("button");
+            translateButton.textContent = "🌐 翻译";
+            translateButton.style.fontSize = "13px";
+            translateButton.style.padding = "6px 12px";
+            translateButton.style.background = "#10b981";
+            translateButton.style.color = "white";
+            translateButton.style.border = "none";
+            translateButton.style.borderRadius = "6px";
+            translateButton.style.cursor = "pointer";
+            translateButton.addEventListener("click", async () => {
+              translateButton.disabled = true;
+              translateButton.textContent = "翻译中...";
+              renderStatus(`正在翻译章节: ${entry.title}...`, "info");
+              
+              try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 600000); // 10分钟超时，支持长文本翻译
+                
+                let response;
+                try {
+                  response = await fetch("/api/translate/chapter", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      title: entry.title,
+                      content: entry.content || "",
+                    }),
+                    signal: controller.signal,
+                  });
+                } catch (fetchError) {
+                  clearTimeout(timeoutId);
+                  if (fetchError.name === "AbortError") {
+                    throw new Error("翻译请求超时，请稍后重试或分段翻译");
+                  }
+                  throw new Error(`网络请求失败: ${fetchError.message}`);
+                }
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                  const payload = await response.json();
+                  throw new Error(payload.error || `翻译失败 (状态码: ${response.status})`);
+                }
+
+                const payload = await response.json();
+                // 更新entry数据（entry是parsedEntries中的引用，会自动同步）
+                entry.title_zh = payload.title_zh || entry.title_zh;
+                entry.content_zh = payload.content_zh || entry.content_zh;
+                // 如果翻译后生成了概要，也更新概要
+                if (payload.summary) {
+                  entry.summary = payload.summary;
+                }
+                
+                // 重新渲染表格以更新显示（使用全局parsedEntries）
+                renderTable(parsedEntries);
+                
+                // 显示翻译结果消息
+                const titleTranslated = payload.title_zh && payload.title_zh !== entry.title;
+                const contentTranslated = payload.content_zh && payload.content_zh !== entry.content;
+                
+                if (payload.warning) {
+                  // 有警告（翻译失败）
+                  renderStatus(payload.warning, "warning");
+                } else if (titleTranslated && contentTranslated) {
+                  // 翻译成功
+                  const successMsg = payload.summary 
+                    ? `章节翻译完成并已生成概要: ${payload.title_zh}`
+                    : `章节翻译完成: ${payload.title_zh}`;
+                  renderStatus(successMsg, "success");
+                } else if (titleTranslated && !contentTranslated) {
+                  // 标题翻译成功，但内容翻译失败
+                  renderStatus(`标题翻译完成，但内容翻译失败: ${payload.title_zh}`, "warning");
+                } else if (!titleTranslated && contentTranslated) {
+                  // 标题翻译失败，但内容翻译成功
+                  renderStatus(`内容翻译完成，但标题翻译失败`, "warning");
+                } else {
+                  // 都翻译失败
+                  renderStatus(`翻译失败: 标题和内容都未能翻译`, "error");
+                }
+              } catch (error) {
+                console.error(error);
+                translateButton.disabled = false;
+                translateButton.textContent = "🌐 翻译";
+                renderStatus(error.message, "error");
+              }
+            });
+            translateCell.appendChild(translateButton);
+          } else {
+            // 中文内容，不需要翻译
+            translateCell.innerHTML = '<span style="color: #94a3b8; font-size: 12px;">—</span>';
+          }
+
+          const summaryCell = document.createElement("td");
+          if (entry.summary) {
+            const summaryButton = document.createElement("button");
+            summaryButton.textContent = "查看章节概述";
+            summaryButton.style.fontSize = "13px";
+            summaryButton.style.padding = "6px 12px";
+            summaryButton.addEventListener("click", () => {
+              dialogTitle.textContent = `${displayTitle} - 概述`;
+              dialogContent.textContent = entry.summary || "(暂无概述)";
+              dialog.showModal();
+            });
+            summaryCell.appendChild(summaryButton);
+          } else {
+            summaryCell.innerHTML = '<span style="color: #94a3b8;">—</span>';
+          }
+
+          row.appendChild(titleCell);
+          row.appendChild(contentCell);
+          row.appendChild(countCell);
+          row.appendChild(translateCell);
+          row.appendChild(summaryCell);
+          resultsBody.appendChild(row);
+        }
+      }
+
+      cleanTocButton.addEventListener("click", async () => {
+        if (!pdfFile.files.length) {
+          renderStatus("请先选择一个文件（PDF或EPUB）。", "error");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", pdfFile.files[0]);
+
+        cleanTocButton.disabled = true;
+        renderStatus("正在清洗目录，请稍候...", "info");
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+          let response;
+          try {
+            response = await fetch("/api/parse/clean_toc", {
+              method: "POST",
+              body: formData,
+              signal: controller.signal,
+            });
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === "AbortError") {
+              throw new Error("请求超时，请检查网络连接或稍后重试");
+            }
+            throw new Error(`网络请求失败: ${fetchError.message}`);
+          }
+          clearTimeout(timeoutId);
+
+          let payload;
+          try {
+            payload = await response.json();
+          } catch (jsonError) {
+            throw new Error(`服务器响应格式错误: ${jsonError.message}`);
+          }
+
+          if (!response.ok) {
+            throw new Error(payload.error || `清洗目录失败 (状态码: ${response.status})`);
+          }
+
+          cleanedTocData = payload.cleaned_toc || [];
+          currentFilename = payload.filename || "未知文件";
+          currentFileType = payload.file_type || null;
+          
+          // 调试日志
+          console.log("步骤1完成：清洗后的目录，共", cleanedTocData.length, "个条目");
+          if (cleanedTocData.length > 0) {
+            console.log("清洗后目录示例：", cleanedTocData[0]);
+          }
+          
+          renderStatus("目录清洗完成，请查看对比结果。", "success");
+          renderTocCompare(payload.raw_toc || [], payload.cleaned_toc || []);
+          extractButton.disabled = false;
+        } catch (error) {
+          console.error(error);
+          renderStatus(error.message, "error");
+          cleanedTocData = null;
+          extractButton.disabled = true;
+        } finally {
+          cleanTocButton.disabled = false;
+        }
+      });
+
+      testTranslateButton.addEventListener("click", () => {
+        translateTestDialog.showModal();
+        translateInput.value = "";
+        translateOutput.textContent = "";
+      });
+
+      doTranslateButton.addEventListener("click", async () => {
+        const text = translateInput.value.trim();
+        if (!text) {
+          renderStatus("请输入要翻译的文本。", "error");
+          return;
+        }
+
+        doTranslateButton.disabled = true;
+        translateOutput.textContent = "正在翻译...";
+        renderStatus("正在翻译文本...", "info");
+
+        try {
+          const response = await fetch("/api/translate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text }),
+          });
+
+          if (!response.ok) {
+            const payload = await response.json();
+            throw new Error(payload.error || `翻译失败 (状态码: ${response.status})`);
+          }
+
+          const payload = await response.json();
+          translateOutput.textContent = payload.translated || payload.result || "翻译失败";
+          renderStatus("翻译完成。", "success");
+        } catch (error) {
+          console.error(error);
+          translateOutput.textContent = `翻译失败: ${error.message}`;
+          renderStatus(error.message, "error");
+        } finally {
+          doTranslateButton.disabled = false;
+        }
+      });
+
+      extractButton.addEventListener("click", async () => {
+        if (!pdfFile.files.length) {
+          renderStatus("请先选择一个文件（PDF或EPUB）。", "error");
+          return;
+        }
+
+        if (!cleanedTocData || cleanedTocData.length === 0) {
+          renderStatus("请先完成步骤1：目录清洗。", "error");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", pdfFile.files[0]);
+
+        extractButton.disabled = true;
+        renderStatus("正在提取内容并统计，请稍候...", "info");
+        renderTable([]);
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+          // 验证清洗后的目录数据
+          if (!cleanedTocData || cleanedTocData.length === 0) {
+            renderStatus("错误：清洗后的目录为空，请重新执行步骤1。", "error");
+            return;
+          }
+
+          // 调试日志
+          console.log("步骤2：使用清洗后的目录，共", cleanedTocData.length, "个条目");
+          console.log("清洗后目录示例：", cleanedTocData[0]);
+
+          // 使用FormData发送文件和JSON数据
+          const formDataWithJson = new FormData();
+          formDataWithJson.append("file", pdfFile.files[0]);
+          formDataWithJson.append("cleaned_toc", JSON.stringify(cleanedTocData));
+          if (currentFileType) {
+            formDataWithJson.append("file_type", currentFileType);
+          }
+
+          let response;
+          try {
+            response = await fetch("/api/parse/extract", {
+              method: "POST",
+              body: formDataWithJson,
+              signal: controller.signal,
+            });
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === "AbortError") {
+              throw new Error("请求超时，请检查网络连接或稍后重试");
+            }
+            throw new Error(`网络请求失败: ${fetchError.message}`);
+          }
+          clearTimeout(timeoutId);
+
+          let payload;
+          try {
+            payload = await response.json();
+          } catch (jsonError) {
+            throw new Error(`服务器响应格式错误: ${jsonError.message}`);
+          }
+
+          if (!response.ok) {
+            throw new Error(payload.error || `提取内容失败 (状态码: ${response.status})`);
+          }
+
+          renderStatus("内容提取完成，请验收结果。", "success");
+          parsedEntries = payload.entries || [];
+          currentFilename = payload.filename || currentFilename;
+          renderTable(parsedEntries);
+          ingestButton.disabled = parsedEntries.length === 0;
+        } catch (error) {
+          console.error(error);
+          renderStatus(error.message, "error");
+          parsedEntries = [];
+          renderTable([]);
+        } finally {
+          extractButton.disabled = false;
+        }
+      });
+
+      ingestButton.addEventListener("click", async () => {
+        if (!parsedEntries.length) {
+          renderStatus("请先完成 PDF 解析。", "error");
+          return;
+        }
+
+        ingestButton.disabled = true;
+        renderStatus("正在生成章节概述并入库，请稍候...", "info");
+
+        const totalChapters = parsedEntries.length;
+        showProgress(totalChapters, "正在准备入库任务...");
+
+        try {
+          const totalWordCount = parsedEntries.reduce((sum, entry) => {
+            const wordCount = Number(entry.word_count);
+            if (!Number.isNaN(wordCount) && wordCount > 0) {
+              return sum + wordCount;
+            }
+            const content = entry.content || "";
+            return sum + content.replace(/\s+/g, "").length;
+          }, 0);
+
+          const startResp = await fetch("/api/parse/ingest/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: currentFilename,
+              chapter_count: totalChapters,
+              total_word_count: totalWordCount,
+            }),
+          });
+
+          const startRaw = await startResp.text();
+          const startTrimmed = startRaw.trim();
+          let startPayload = {};
+          if (startTrimmed) {
+            try {
+              startPayload = JSON.parse(startTrimmed);
+            } catch (jsonError) {
+              throw new Error(`入库初始化响应格式错误: ${startTrimmed.substring(0, 200)}`);
+            }
+          }
+
+          if (!startResp.ok) {
+            throw new Error(startPayload.error || `入库初始化失败 (状态码: ${startResp.status})`);
+          }
+
+          const bookId = startPayload.book_id;
+          if (bookId === undefined || bookId === null) {
+            throw new Error("入库初始化失败：未返回 book_id");
+          }
+
+          for (let index = 0; index < totalChapters; index++) {
+            const entry = parsedEntries[index];
+            const displayTitle = entry.title_zh || entry.title || `第 ${index + 1} 章`;
+            updateProgress(index, totalChapters, `正在处理第 ${index + 1}/${totalChapters} 章：${displayTitle}`);
+
+            const chapterResp = await fetch("/api/parse/ingest/chapter", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                book_id: bookId,
+                entry,
+                index,
+              }),
+            });
+
+            const chapterRaw = await chapterResp.text();
+            const chapterTrimmed = chapterRaw.trim();
+            let chapterPayload = {};
+            if (chapterTrimmed) {
+              try {
+                chapterPayload = JSON.parse(chapterTrimmed);
+              } catch (jsonError) {
+                throw new Error(`第 ${index + 1} 章响应格式错误: ${chapterTrimmed.substring(0, 200)}`);
+              }
+            }
+
+            if (!chapterResp.ok) {
+              throw new Error(chapterPayload.error || `章节 ${index + 1} 入库失败 (状态码: ${chapterResp.status})`);
+            }
+
+            const processedEntry = chapterPayload.entry || entry;
+            parsedEntries[index] = processedEntry;
+            updateProgress(index + 1, totalChapters, `完成第 ${index + 1}/${totalChapters} 章：${processedEntry.title_zh || processedEntry.title}`);
+          }
+
+          updateProgress(totalChapters, totalChapters, "所有章节处理完成");
+          renderTable(parsedEntries);
+          renderStatus("章节概述已完成入库。", "success");
+        } catch (error) {
+          console.error(error);
+          renderStatus(error.message || "概述入库失败", "error");
+        } finally {
+          hideProgress();
+          if (parsedEntries.length) {
+            ingestButton.disabled = false;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>个性化解读生成测试台</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+
+      body {
+        margin: 0;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 30px;
+      }
+
+      .panel {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.1);
+      }
+
+      .panel h2 {
+        margin-top: 0;
+        font-size: 22px;
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      label {
+        font-weight: 600;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 14px;
+      }
+
+      textarea,
+      input,
+      select {
+        border: 1px solid #cbd5f5;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 15px;
+        font-family: inherit;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      textarea:focus,
+      input:focus,
+      select:focus {
+        border-color: #2563eb;
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+      }
+
+      textarea {
+        min-height: 200px;
+        resize: vertical;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 12px 20px;
+        border-radius: 10px;
+        border: none;
+        background: #2563eb;
+        color: white;
+        font-size: 15px;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      button.secondary {
+        background: #0f172a;
+      }
+
+      button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+      }
+
+      .status {
+        margin-top: 12px;
+        font-size: 15px;
+      }
+
+      .output-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 18px;
+      }
+
+      .output-card {
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        border-radius: 12px;
+        padding: 18px;
+        background: #f1f5f9;
+      }
+
+      .output-card h3 {
+        margin-top: 0;
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+
+      .output-card p,
+      .output-card li {
+        line-height: 1.7;
+      }
+
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: inherit;
+        margin: 0;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>个性化解读生成测试台</h1>
+
+    <section class="panel">
+      <h2>A. 核心提示词管理区</h2>
+      <div class="stack">
+        <label>
+          Master Prompt
+          <textarea id="masterPrompt" placeholder="输入核心提示词..."></textarea>
+        </label>
+        <div class="actions">
+          <button id="savePrompt">保存核心提示词</button>
+        </div>
+        <div class="status" id="promptStatus"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>B. 手动输入区</h2>
+      <div class="stack">
+        <label>
+          章节标题
+          <input id="chapterTitle" type="text" />
+        </label>
+        <label>
+          章节原文
+          <textarea id="chapterText"></textarea>
+        </label>
+        <div class="stack" style="flex-direction: row; flex-wrap: wrap; gap: 16px">
+          <label style="flex: 1 1 180px">
+            用户职业
+            <input id="userProfession" type="text" />
+          </label>
+          <label style="flex: 1 1 180px">
+            阅读目的
+            <input id="readingGoal" type="text" />
+          </label>
+        </div>
+        <div class="stack" style="flex-direction: row; flex-wrap: wrap; gap: 16px">
+          <label style="flex: 1 1 180px">
+            关注重点
+            <input id="focus" type="text" />
+          </label>
+          <label style="flex: 1 1 180px">
+            解读密度
+            <select id="density">
+              <option value="10% 精华">10% 精华</option>
+              <option value="30% 核心">30% 核心</option>
+              <option value="50% 要义">50% 要义</option>
+            </select>
+          </label>
+        </div>
+        <div class="actions">
+          <button id="generateButton" class="secondary">开始生成个性化解读</button>
+        </div>
+        <div class="status" id="generationStatus"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>C. 成品输出区</h2>
+      <div id="outputArea" class="output-grid">
+        <div class="output-card">
+          <h3>结果待生成</h3>
+          <p>点击“开始生成个性化解读”后，将在此显示完整内容。</p>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      const defaults = {
+        chapterTitle: "第一章：认识自己",
+        chapterText: `人，认识你自己。这是一个古老的哲学命题，也是每一位 CEO 在复杂商业环境中必须不断追问的问题。现代企业领导者所面对的，是动态变化的市场、瞬息万变的竞争格局以及复杂的 stakeholder 网络。如果不能精准定位自我，就无法有效调动资源，更无从谈起领导别人。认识自己，首先要清晰掌握你的价值观、决策风格与压力反应模式。只有真正理解这些内在驱动力，你才能在企业战略转型、人才布局和危机管理中保持稳定与清晰。其次，领导者必须建立可回顾的经验档案，系统梳理每一次成功与失误背后的因果逻辑。通过这样的“复盘机制”，你会逐渐形成专属的领导知识库，为未来的重大选择提供可参考的模型。最后，认识自己并不是孤立的 introspection，而是通过与团队、董事会乃至市场的互动，持续修正自我认知。建立一个可信的反馈系统，才能确保你的自我判断不会偏离现实，真正做到既忠于内心，又不脱离时代。`,
+        userProfession: "CEO",
+        readingGoal: "提升管理技能",
+        focus: "可落地的应用案例",
+        density: "30% 核心",
+      };
+
+      const masterPrompt = document.getElementById("masterPrompt");
+      const promptStatus = document.getElementById("promptStatus");
+      const savePrompt = document.getElementById("savePrompt");
+
+      const chapterTitle = document.getElementById("chapterTitle");
+      const chapterText = document.getElementById("chapterText");
+      const userProfession = document.getElementById("userProfession");
+      const readingGoal = document.getElementById("readingGoal");
+      const focus = document.getElementById("focus");
+      const density = document.getElementById("density");
+      const generateButton = document.getElementById("generateButton");
+      const generationStatus = document.getElementById("generationStatus");
+      const outputArea = document.getElementById("outputArea");
+
+      function renderStatus(el, message, type = "info") {
+        const palette = {
+          info: "#1e293b",
+          success: "#047857",
+          error: "#b91c1c",
+        };
+        el.style.color = palette[type] ?? palette.info;
+        el.textContent = message;
+      }
+
+      function fillDefaults() {
+        chapterTitle.value = defaults.chapterTitle;
+        chapterText.value = defaults.chapterText;
+        userProfession.value = defaults.userProfession;
+        readingGoal.value = defaults.readingGoal;
+        focus.value = defaults.focus;
+        density.value = defaults.density;
+      }
+
+      function renderOutput(data) {
+        if (!data) {
+          outputArea.innerHTML = `
+            <div class="output-card">
+              <h3>结果待生成</h3>
+              <p>点击“开始生成个性化解读”后，将在此显示完整内容。</p>
+            </div>`;
+          return;
+        }
+
+        const {
+          personalized_intro,
+          interpretation,
+          summary_and_application,
+          powerful_questions,
+          quiz,
+        } = data;
+
+        outputArea.innerHTML = `
+          <div class="output-card">
+            <h3>1. 个性化导读</h3>
+            <p>${personalized_intro ?? "暂无内容"}</p>
+          </div>
+          <div class="output-card">
+            <h3>2. 正式解读内容</h3>
+            <p>${interpretation ?? "暂无内容"}</p>
+          </div>
+          <div class="output-card">
+            <h3>3. 章节总结与应用</h3>
+            <p>${summary_and_application ?? "暂无内容"}</p>
+          </div>
+          <div class="output-card">
+            <h3>4. 强有力的提问</h3>
+            <ul>
+              ${(powerful_questions ?? [])
+                .map((question) => `<li>${question}</li>`)
+                .join("") || "<li>暂无内容</li>"}
+            </ul>
+          </div>
+          <div class="output-card">
+            <h3>5. 章节考试</h3>
+            <div>
+              ${(quiz ?? [])
+                .map(
+                  (item, index) => `
+                    <div style="margin-bottom: 16px">
+                      <strong>${index + 1}. ${item.question ?? ""}</strong>
+                      <ol style="margin: 8px 0 0 18px; padding: 0;">
+                        ${(item.options ?? [])
+                          .map((option, idx) => `<li>(${String.fromCharCode(65 + idx)}) ${option}</li>`)
+                          .join("")}
+                      </ol>
+                      <p style="margin: 8px 0 0 0; font-size: 14px;">答案：${item.answer ?? "?"}</p>
+                      <p style="margin: 4px 0 0 0; font-size: 14px; color: #334155;">解析：${item.explanation ?? ""}</p>
+                    </div>
+                  `
+                )
+                .join("") || "<p>暂无考题</p>"}
+            </div>
+          </div>
+        `;
+      }
+
+      savePrompt.addEventListener("click", async () => {
+        renderStatus(promptStatus, "正在保存...", "info");
+        savePrompt.disabled = true;
+        try {
+          const response = await fetch("/api/settings/master_prompt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: masterPrompt.value }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || "保存失败");
+          }
+          renderStatus(promptStatus, "核心提示词已保存。", "success");
+        } catch (error) {
+          console.error(error);
+          renderStatus(promptStatus, error.message, "error");
+        } finally {
+          savePrompt.disabled = false;
+        }
+      });
+
+      generateButton.addEventListener("click", async () => {
+        const payload = {
+          chapterTitle: chapterTitle.value.trim(),
+          chapterText: chapterText.value.trim(),
+          userProfession: userProfession.value.trim(),
+          readingGoal: readingGoal.value.trim(),
+          focus: focus.value.trim(),
+          density: density.value,
+        };
+
+        renderStatus(generationStatus, "正在调用 AI，请稍候...", "info");
+        generateButton.disabled = true;
+
+        try {
+          const response = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "生成失败");
+          }
+          renderStatus(generationStatus, "生成完成，请验收。", "success");
+          renderOutput(data.result);
+        } catch (error) {
+          console.error(error);
+          renderStatus(generationStatus, error.message, "error");
+          renderOutput(null);
+        } finally {
+          generateButton.disabled = false;
+        }
+      });
+
+      async function bootstrap() {
+        fillDefaults();
+        renderOutput(null);
+
+        try {
+          const response = await fetch("/api/settings/master_prompt");
+          const payload = await response.json();
+          if (response.ok && payload.value !== undefined) {
+            masterPrompt.value = payload.value;
+            renderStatus(promptStatus, "已加载核心提示词。", "success");
+          } else if (!response.ok) {
+            throw new Error(payload.error || "加载失败");
+          }
+        } catch (error) {
+          console.error(error);
+          renderStatus(promptStatus, error.message, "error");
+        }
+      }
+
+      bootstrap();
+    </script>
+  </body>
+</html>
+
