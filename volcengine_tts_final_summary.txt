@@ -1,0 +1,39 @@
+============================================================
+火山引擎 TTS API 测试总结
+============================================================
+
+【V1 HTTP API 测试结果】
+- 端点: https://openspeech.bytedance.com/api/v1/tts
+- 状态: ❌ 失败
+- 错误: "Unsupported operation: synthesis"
+- 说明: 即使技术支持确认支持 "synthesis"，API仍返回不支持
+
+【V3 WebSocket API 测试结果】
+- 端点: wss://openspeech.bytedance.com/api/v3/tts/bidirection
+- 状态: ❌ 失败
+- 错误: "[resource_id=volc.seedtts.default] requested resource not granted"
+- 说明: 资源未授权，需要在控制台开通服务并获取正确的resource_id
+
+【当前配置】
+- Access Key: 已配置
+- Secret Key: 已配置
+- App ID: 9506742782
+- Resource ID: seed-tts-2.0 (尝试值)
+
+【需要用户在控制台确认】
+1. 是否已开通 TTS 服务？
+2. 正确的 resource_id 是什么？（从控制台「应用管理」获取）
+3. 账户是否有权限访问该资源？
+
+【测试脚本】
+- 文件: test_podcast.py
+- 默认使用 V3 WebSocket（推荐）
+- 可通过环境变量 VOLCENGINE_USE_V3=false 切换到 V1 HTTP
+- 可通过环境变量 VOLCENGINE_TTS_RESOURCE_ID 指定 resource_id
+
+【下一步建议】
+1. 登录火山引擎控制台
+2. 检查「应用管理」中的 resource_id
+3. 确认 TTS 服务已开通并有权限
+4. 将正确的 resource_id 配置到 .env 文件或环境变量中
+5. 重新运行测试脚本

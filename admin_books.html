@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>后台管理 - 书籍数据管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        max-width: 1600px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 32px;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .subtitle {
+        color: #64748b;
+        font-size: 14px;
+        margin-bottom: 32px;
+      }
+
+      .panel {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 24px;
+        border: 1px solid #e2e8f0;
+      }
+
+      .panel h2 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        background: #2563eb;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+
+      button.danger {
+        background: #ef4444;
+      }
+
+      button.secondary {
+        background: #64748b;
+      }
+
+      button:disabled {
+        background: #cbd5e1;
+        color: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      }
+
+      button.danger:hover:not(:disabled) {
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      th {
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      th:first-child {
+        width: 50px;
+      }
+
+      td {
+        padding: 16px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
+        font-size: 14px;
+      }
+
+      tbody tr {
+        transition: background-color 0.15s ease;
+      }
+
+      tbody tr:hover {
+        background: rgba(102, 126, 234, 0.05);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+
+      .status {
+        margin-top: 16px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        background: #f1f5f9;
+        border-left: 4px solid #cbd5e1;
+      }
+
+      .status.success {
+        background: #f0fdf4;
+        border-left-color: #10b981;
+        color: #065f46;
+      }
+
+      .status.error {
+        background: #fef2f2;
+        border-left-color: #ef4444;
+        color: #991b1b;
+      }
+
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 20px;
+      }
+
+      .pagination button {
+        padding: 8px 16px;
+        background: #e2e8f0;
+        color: #475569;
+        font-size: 14px;
+      }
+
+      .pagination button.active {
+        background: #2563eb;
+        color: white;
+      }
+
+      .pagination button:hover:not(:disabled) {
+        background: #cbd5e1;
+      }
+
+      .pagination button.active:hover {
+        background: #1d4ed8;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(95vw, 1400px);
+        max-height: 95vh;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      }
+
+      dialog h3 {
+        margin: 0;
+        padding: 24px 28px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 20px;
+        font-weight: 600;
+        border-radius: 16px 16px 0 0;
+      }
+
+      dialog .modal-body {
+        padding: 24px 28px;
+        overflow-y: auto;
+        max-height: calc(95vh - 140px);
+      }
+
+      dialog > div:last-child {
+        padding: 20px 28px;
+        background: #f8fafc;
+        border-radius: 0 0 16px 16px;
+        border-top: 1px solid #e2e8f0;
+        text-align: right;
+      }
+
+      dialog::backdrop {
+        background-color: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(4px);
+      }
+
+      .book-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+        padding: 20px;
+        background: #f8fafc;
+        border-radius: 12px;
+      }
+
+      .book-info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .book-info-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .book-info-value {
+        font-size: 16px;
+        color: #1e293b;
+        font-weight: 500;
+      }
+
+      .chapter-item {
+        padding: 20px;
+        border-bottom: 1px solid #e2e8f0;
+        transition: background-color 0.15s ease;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+      }
+
+      .chapter-item:hover {
+        background: rgba(102, 126, 234, 0.03);
+        border-color: #cbd5e1;
+      }
+
+      .chapter-item:last-child {
+        border-bottom: none;
+      }
+
+      .chapter-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+        cursor: pointer;
+      }
+
+      .chapter-title {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 16px;
+        flex: 1;
+        margin-right: 12px;
+      }
+
+      .chapter-toggle {
+        background: #f1f5f9;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .chapter-toggle:hover {
+        background: #e2e8f0;
+        color: #475569;
+      }
+
+      .chapter-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: #64748b;
+        margin-bottom: 12px;
+      }
+
+      .chapter-summary {
+        margin-top: 12px;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #475569;
+        line-height: 1.8;
+        border-left: 3px solid #10b981;
+      }
+
+      .chapter-content {
+        margin-top: 12px;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #475569;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 600px;
+        overflow-y: auto;
+        border-left: 3px solid #2563eb;
+      }
+
+      .chapter-content.collapsed {
+        display: none;
+      }
+
+      .search-box {
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      .search-box input {
+        width: 100%;
+        padding: 12px 16px 12px 40px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      .search-box input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📚 后台管理 - 书籍数据管理</h1>
+    <p class="subtitle">管理已入库的书籍，查看详情和章节数据</p>
+
+    <section class="panel">
+      <div class="toolbar">
+        <div>
+          <button id="selectAllBtn">全选</button>
+          <button id="selectNoneBtn">取消全选</button>
+          <button id="batchDeleteBtn" class="danger" disabled>批量删除</button>
+        </div>
+        <div>
+          <button id="refreshBtn">刷新</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAllCheckbox" /></th>
+            <th>ID</th>
+            <th>文件名</th>
+            <th>章节数</th>
+            <th>总字数</th>
+            <th>入库时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="booksBody">
+          <tr>
+            <td colspan="7" style="text-align: center; color: #94a3b8; padding: 40px;">
+              加载中...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pagination" id="pagination"></div>
+      <div class="status" id="statusArea"></div>
+    </section>
+
+    <dialog id="bookDetailDialog">
+      <h3 id="dialogTitle">书籍详情</h3>
+      <div class="modal-body" id="dialogContent"></div>
+      <div>
+        <button id="closeDialog">关闭</button>
+      </div>
+    </dialog>
+
+    <script>
+      const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+      const selectAllBtn = document.getElementById("selectAllBtn");
+      const selectNoneBtn = document.getElementById("selectNoneBtn");
+      const batchDeleteBtn = document.getElementById("batchDeleteBtn");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const booksBody = document.getElementById("booksBody");
+      const pagination = document.getElementById("pagination");
+      const statusArea = document.getElementById("statusArea");
+      const bookDetailDialog = document.getElementById("bookDetailDialog");
+      const dialogTitle = document.getElementById("dialogTitle");
+      const dialogContent = document.getElementById("dialogContent");
+      const closeDialog = document.getElementById("closeDialog");
+
+      let currentPage = 1;
+      let totalPages = 1;
+      let selectedIds = new Set();
+
+      closeDialog.addEventListener("click", () => bookDetailDialog.close());
+
+      function renderStatus(message, type = "info") {
+        statusArea.className = `status ${type}`;
+        statusArea.textContent = message;
+      }
+
+      function loadBooks(page = 1) {
+        renderStatus("正在加载...", "info");
+        booksBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 40px;">加载中...</td></tr>';
+
+        fetch(`/api/admin/books?page=${page}&per_page=20`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            currentPage = data.page;
+            totalPages = data.total_pages;
+
+            if (data.books.length === 0) {
+              booksBody.innerHTML =
+                '<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 40px;">暂无数据</td></tr>';
+              renderStatus("暂无数据", "info");
+              return;
+            }
+
+            booksBody.innerHTML = "";
+            data.books.forEach((book) => {
+              const row = document.createElement("tr");
+              const isSelected = selectedIds.has(book.id);
+
+              row.innerHTML = `
+                <td>
+                  <input type="checkbox" class="book-checkbox" data-id="${book.id}" ${isSelected ? "checked" : ""} />
+                </td>
+                <td>${book.id}</td>
+                <td>${escapeHtml(book.filename)}</td>
+                <td>${book.chapter_count}</td>
+                <td>${book.total_word_count.toLocaleString()} 字</td>
+                <td>${new Date(book.created_at).toLocaleString("zh-CN")}</td>
+                <td>
+                  <button onclick="viewBookDetails(${book.id})" style="font-size: 13px; padding: 6px 12px; margin-right: 8px;">
+                    查看详情
+                  </button>
+                  <button class="danger" onclick="deleteBook(${book.id})" style="font-size: 13px; padding: 6px 12px;">
+                    删除
+                  </button>
+                </td>
+              `;
+              booksBody.appendChild(row);
+            });
+
+            updateCheckboxes();
+            renderPagination();
+            renderStatus(`已加载 ${data.books.length} 条记录，共 ${data.total} 条`, "success");
+          })
+          .catch((error) => {
+            console.error(error);
+            renderStatus(error.message, "error");
+            booksBody.innerHTML =
+              '<tr><td colspan="7" style="text-align: center; color: #ef4444; padding: 40px;">加载失败</td></tr>';
+          });
+      }
+
+      function renderPagination() {
+        pagination.innerHTML = "";
+        if (totalPages <= 1) return;
+
+        const maxButtons = 7;
+        let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+        let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+        if (endPage - startPage < maxButtons - 1) {
+          startPage = Math.max(1, endPage - maxButtons + 1);
+        }
+
+        if (startPage > 1) {
+          const btn = document.createElement("button");
+          btn.textContent = "«";
+          btn.onclick = () => loadBooks(1);
+          pagination.appendChild(btn);
+        }
+
+        if (currentPage > 1) {
+          const btn = document.createElement("button");
+          btn.textContent = "‹";
+          btn.onclick = () => loadBooks(currentPage - 1);
+          pagination.appendChild(btn);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+          const btn = document.createElement("button");
+          btn.textContent = i;
+          btn.className = i === currentPage ? "active" : "";
+          btn.onclick = () => loadBooks(i);
+          pagination.appendChild(btn);
+        }
+
+        if (currentPage < totalPages) {
+          const btn = document.createElement("button");
+          btn.textContent = "›";
+          btn.onclick = () => loadBooks(currentPage + 1);
+          pagination.appendChild(btn);
+        }
+
+        if (endPage < totalPages) {
+          const btn = document.createElement("button");
+          btn.textContent = "»";
+          btn.onclick = () => loadBooks(totalPages);
+          pagination.appendChild(btn);
+        }
+      }
+
+      function updateCheckboxes() {
+        const checkboxes = document.querySelectorAll(".book-checkbox");
+        const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every((cb) => cb.checked);
+        selectAllCheckbox.checked = allChecked;
+        batchDeleteBtn.disabled = selectedIds.size === 0;
+
+        checkboxes.forEach((cb) => {
+          cb.addEventListener("change", (e) => {
+            const id = parseInt(e.target.dataset.id);
+            if (e.target.checked) {
+              selectedIds.add(id);
+            } else {
+              selectedIds.delete(id);
+            }
+            batchDeleteBtn.disabled = selectedIds.size === 0;
+            updateCheckboxes();
+          });
+        });
+      }
+
+      selectAllCheckbox.addEventListener("change", (e) => {
+        const checkboxes = document.querySelectorAll(".book-checkbox");
+        checkboxes.forEach((cb) => {
+          cb.checked = e.target.checked;
+          const id = parseInt(cb.dataset.id);
+          if (e.target.checked) {
+            selectedIds.add(id);
+          } else {
+            selectedIds.delete(id);
+          }
+        });
+        batchDeleteBtn.disabled = selectedIds.size === 0;
+      });
+
+      selectAllBtn.addEventListener("click", () => {
+        const checkboxes = document.querySelectorAll(".book-checkbox");
+        checkboxes.forEach((cb) => {
+          cb.checked = true;
+          selectedIds.add(parseInt(cb.dataset.id));
+        });
+        selectAllCheckbox.checked = true;
+        batchDeleteBtn.disabled = false;
+      });
+
+      selectNoneBtn.addEventListener("click", () => {
+        const checkboxes = document.querySelectorAll(".book-checkbox");
+        checkboxes.forEach((cb) => {
+          cb.checked = false;
+        });
+        selectedIds.clear();
+        selectAllCheckbox.checked = false;
+        batchDeleteBtn.disabled = true;
+      });
+
+      batchDeleteBtn.addEventListener("click", () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`确定要删除选中的 ${selectedIds.size} 本书籍吗？此操作不可恢复，将同时删除所有相关章节！`)) {
+          return;
+        }
+
+        batchDeleteBtn.disabled = true;
+        renderStatus("正在删除...", "info");
+
+        fetch("/api/admin/books/batch_delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: Array.from(selectedIds) }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              throw new Error(data.error);
+            }
+            selectedIds.clear();
+            renderStatus(data.message, "success");
+            loadBooks(currentPage);
+          })
+          .catch((error) => {
+            console.error(error);
+            renderStatus(error.message, "error");
+            batchDeleteBtn.disabled = false;
+          });
+      });
+
+      refreshBtn.addEventListener("click", () => {
+        loadBooks(currentPage);
+      });
+
+      function viewBookDetails(bookId) {
+        dialogContent.innerHTML = '<div style="text-align: center; padding: 40px;"><span class="loading"></span>加载中...</div>';
+        bookDetailDialog.showModal();
+
+        fetch(`/api/admin/books/${bookId}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              throw new Error(data.error);
+            }
+
+            const book = data.book;
+            const chapters = data.chapters;
+
+            dialogTitle.textContent = `📚 ${escapeHtml(book.filename)}`;
+
+            let html = `
+              <div class="book-info">
+                <div class="book-info-item">
+                  <div class="book-info-label">书籍ID</div>
+                  <div class="book-info-value">${book.id}</div>
+                </div>
+                <div class="book-info-item">
+                  <div class="book-info-label">章节数量</div>
+                  <div class="book-info-value">${book.chapter_count} 章</div>
+                </div>
+                <div class="book-info-item">
+                  <div class="book-info-label">总字数</div>
+                  <div class="book-info-value">${book.total_word_count.toLocaleString()} 字</div>
+                </div>
+                <div class="book-info-item">
+                  <div class="book-info-label">入库时间</div>
+                  <div class="book-info-value">${new Date(book.created_at).toLocaleString("zh-CN")}</div>
+                </div>
+              </div>
+              <h3 style="margin-top: 24px; margin-bottom: 16px; font-size: 18px; color: #1e293b;">章节列表 (${chapters.length})</h3>
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="chapterSearch" placeholder="搜索章节标题、摘要或内容..." />
+              </div>
+              <div id="chaptersContainer" style="max-height: 70vh; overflow-y: auto;">
+            `;
+
+            if (chapters.length === 0) {
+              html += '<div style="text-align: center; padding: 40px; color: #94a3b8;">暂无章节数据</div>';
+            } else {
+              chapters.forEach((chapter, index) => {
+                const hasTranslation = chapter.title_zh !== chapter.title || chapter.content_zh !== chapter.content;
+                const chapterId = `chapter-${chapter.id}`;
+                html += `
+                  <div class="chapter-item" data-chapter-id="${chapter.id}" data-index="${index}">
+                    <div class="chapter-header" onclick="toggleChapter('${chapterId}')">
+                      <div class="chapter-title">
+                        ${index + 1}. ${escapeHtml(chapter.title_zh)}${hasTranslation ? ' <span style="color: #2563eb; font-size: 12px;">(已翻译)</span>' : ''}
+                      </div>
+                      <button class="chapter-toggle" id="toggle-${chapterId}">展开</button>
+                    </div>
+                    <div class="chapter-meta">
+                      <span>字数: ${chapter.word_count.toLocaleString()}</span>
+                      <span>创建: ${new Date(chapter.created_at).toLocaleString("zh-CN")}</span>
+                    </div>
+                    <div class="chapter-summary" id="summary-${chapterId}">
+                      <strong style="color: #10b981; display: block; margin-bottom: 8px;">📝 章节概要</strong>
+                      ${escapeHtml(chapter.summary || "暂无概要")}
+                    </div>
+                    <div class="chapter-content collapsed" id="content-${chapterId}">
+                      <strong style="color: #2563eb; display: block; margin-bottom: 8px;">📄 章节内容</strong>
+                      ${escapeHtml(chapter.content_zh || chapter.content || "暂无内容")}
+                    </div>
+                  </div>
+                `;
+              });
+            }
+
+            html += "</div>";
+            dialogContent.innerHTML = html;
+
+            // 添加搜索功能
+            const searchInput = document.getElementById("chapterSearch");
+            if (searchInput) {
+              searchInput.addEventListener("input", (e) => {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                const chapterItems = document.querySelectorAll(".chapter-item");
+                chapterItems.forEach((item) => {
+                  const title = item.querySelector(".chapter-title").textContent.toLowerCase();
+                  const summary = item.querySelector(".chapter-summary").textContent.toLowerCase();
+                  const content = item.querySelector(".chapter-content").textContent.toLowerCase();
+                  const matches = title.includes(searchTerm) || summary.includes(searchTerm) || content.includes(searchTerm);
+                  item.style.display = matches ? "block" : "none";
+                });
+              });
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+            dialogContent.innerHTML = `<div style="color: #ef4444; padding: 40px; text-align: center;">加载失败: ${escapeHtml(error.message)}</div>`;
+          });
+      }
+
+      function toggleChapter(chapterId) {
+        const contentDiv = document.getElementById(`content-${chapterId}`);
+        const toggleBtn = document.getElementById(`toggle-${chapterId}`);
+        
+        if (contentDiv.classList.contains("collapsed")) {
+          contentDiv.classList.remove("collapsed");
+          toggleBtn.textContent = "收起";
+        } else {
+          contentDiv.classList.add("collapsed");
+          toggleBtn.textContent = "展开";
+        }
+      }
+
+      function viewChapterContent(chapterId, title, content, summary) {
+        const chapterDialog = document.createElement("dialog");
+        chapterDialog.innerHTML = `
+          <h3>${escapeHtml(title)}</h3>
+          <div class="modal-body">
+            <div style="margin-bottom: 20px;">
+              <h4 style="margin: 0 0 12px 0; color: #64748b; font-size: 14px; font-weight: 600;">章节概要</h4>
+              <div style="padding: 16px; background: #f8fafc; border-radius: 8px; line-height: 1.8; color: #475569;">
+                ${escapeHtml(summary || "暂无概要")}
+              </div>
+            </div>
+            <div>
+              <h4 style="margin: 0 0 12px 0; color: #64748b; font-size: 14px; font-weight: 600;">章节内容</h4>
+              <div style="padding: 16px; background: #f8fafc; border-radius: 8px; line-height: 1.8; color: #475569; white-space: pre-wrap; max-height: 400px; overflow-y: auto;">
+                ${escapeHtml(content || "暂无内容")}
+              </div>
+            </div>
+          </div>
+          <div>
+            <button onclick="this.closest('dialog').close()">关闭</button>
+          </div>
+        `;
+        document.body.appendChild(chapterDialog);
+        chapterDialog.showModal();
+        chapterDialog.querySelector("button").addEventListener("click", () => {
+          chapterDialog.close();
+          document.body.removeChild(chapterDialog);
+        });
+      }
+
+      function deleteBook(bookId) {
+        if (!confirm("确定要删除这本书籍吗？此操作不可恢复，将同时删除所有相关章节！")) {
+          return;
+        }
+
+        fetch(`/api/admin/books/${bookId}`, {
+          method: "DELETE",
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              throw new Error(data.error);
+            }
+            selectedIds.delete(bookId);
+            renderStatus(data.message, "success");
+            loadBooks(currentPage);
+          })
+          .catch((error) => {
+            console.error(error);
+            renderStatus(error.message, "error");
+          });
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // 初始加载
+      loadBooks();
+    </script>
+  </body>
+</html>
+

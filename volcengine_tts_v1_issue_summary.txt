@@ -1,0 +1,53 @@
+============================================================
+火山引擎 TTS API V1 版本问题总结
+============================================================
+
+【当前状态】
+- 已按照技术支持建议调整参数格式
+- 使用 operation: "synthesis"（完整拼写）
+- 使用 cluster: "seed-tts-2.0" 或 "seed-tts"
+- 参数结构符合技术支持提供的格式
+
+【持续错误】
+HTTP状态码: 400
+错误码: 3001
+错误信息: "Unsupported operation: synthesis"
+
+【已尝试的cluster值】
+1. "volcano_tts" → Unsupported operation
+2. "seed-tts" → Unsupported operation  
+3. "seed-tts-2.0" → Unsupported operation
+
+【当前请求格式】
+{
+  "app": {
+    "appid": "9506742782",
+    "token": "dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV",
+    "cluster": "seed-tts-2.0"
+  },
+  "user": {
+    "uid": "dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV"
+  },
+  "audio": {
+    "voice_type": "BV700_streaming",
+    "encoding": "mp3",
+    "rate": 24000
+  },
+  "request": {
+    "operation": "synthesis",
+    "text": "测试文本",
+    "reqid": "唯一请求ID"
+  },
+  "timestamp": 1763101371,
+  "signature": "..."
+}
+
+【建议】
+根据技术支持的建议，如果V1版本仍有问题，应该改用V3 WebSocket接口：
+- 端点：wss://openspeech.bytedance.com/api/v3/tts/bidirection
+- 需要添加请求头：X-Api-Resource-Id: seed-tts-2.0
+
+【需要确认】
+1. V1 API 是否真的支持 "synthesis" operation？
+2. 是否需要从控制台获取正确的 cluster 值？
+3. 是否应该直接使用 V3 WebSocket 接口？

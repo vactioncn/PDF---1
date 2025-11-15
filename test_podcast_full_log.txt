@@ -1,0 +1,81 @@
+
+============================================================
+火山引擎 TTS API 连通性测试
+============================================================
+
+使用自定义测试文本: 测试文本
+
+============================================================
+火山引擎TTS API 测试
+============================================================
+Access Key: dvoCWZAXA-...
+Secret Key: 你的SFzyV4rr...
+App ID: 9506742782
+测试文本: 测试文本...
+音色类型: BV700_streaming
+语言: zh
+语速: 1.0, 音量: 1.0, 音调: 1.0
+============================================================
+
+请求参数（用于签名）:
+  appid: 9506742782
+  text: 测试文本... (长度: 4)
+  text_type: plain
+  voice_type: BV700_streaming
+  language: zh
+  speed_ratio: 1.0
+  volume_ratio: 1.0
+  pitch_ratio: 1.0
+  encoding: mp3
+  rate: 24000
+  timestamp: 1763101180
+
+生成签名（基于JSON参数扁平化）...
+待签名字符串:
+POST
+openspeech.bytedance.com
+/api/v1/tts
+appid=9506742782&cluster=volcano_tts&encoding=mp3&operation=synthesis&rate=24000&reqid=3ade63c4-89a1-472b-96b6-393d0fe1ed73&text=%E6%B5%8B%E8%AF%95%E6%96%87%E6%9C%AC&timestamp=1763101180&token=dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV&uid=dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV&voice_type=BV700_streaming
+
+签名: prbp6o08DTxqFO3AQCyKOZp0s1vQOcxuccgaNzwblMc=...
+
+发送请求到: https://openspeech.bytedance.com/api/v1/tts
+JSON参数结构: {
+  "app": {
+    "appid": "9506742782",
+    "token": "dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV",
+    "cluster": "volcano_tts"
+  },
+  "user": {
+    "uid": "dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV"
+  },
+  "audio": {
+    "voice_type": "BV700_streaming",
+    "encoding": "mp3",
+    "rate": 24000
+  },
+  "request": {
+    "operation": "synthesis",
+    "text": "测试文本",
+    "reqid": "3ade63c4-89a1-472b-96b6-393d0fe1ed73"
+  },
+  "signature": "prbp6o08DTxqFO3AQCyKOZp0s1vQOcxuccgaNzwblMc=",
+  "timestamp": 1763101180
+}
+
+响应状态码: 400
+响应时间: 0.29秒
+响应头: {'Server': 'Tengine', 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': '166', 'Connection': 'keep-alive', 'Date': 'Fri, 14 Nov 2025 06:19:41 GMT', 'X-Tt-Logid': '20251114141941060305550F57D695831E', 'Api-Service-Host': '10.150.168.169', 'server-timing': 'inner; dur=5, cdn-cache;desc=MISS,edge;dur=68,origin;dur=50', 'x-tt-trace-host': '010bddb3bace51d57cb75ed47740cc1bc2aa298a8fda20f156a42bb46eae384403b6ccb6d6833c20a584d69e4e6c0a8466ef5c2098a0d637cc7c959013bd1020662243e2822b460e6e25dbeaf56861da9e0c9e893a309c84e34503ba95f5b4ae0a', 'x-tt-trace-tag': 'id=03;cdn-cache=miss;type=dyn', 'x-tt-trace-id': '00-251114141941060305550F57D695831E-5B9BB4CE2FFFA66C-00', 'x-alicdn-da-ups-status': 'endOs,0,400', 'Via': 'cache44.l2cn3031[50,0], cache9.cn7596[118,0]', 'Timing-Allow-Origin': '*', 'EagleId': '7555469d17631011810893039e'}
+
+❌ 错误响应: {"reqid":"3ade63c4-89a1-472b-96b6-393d0fe1ed73","code":3001,"message":"pushing data to async workflow: unable to unmarshal request: Unsupported operation: synthesis"}
+
+============================================================
+❌ 测试失败
+============================================================
+错误: 火山引擎TTS API返回错误 400: {"reqid":"3ade63c4-89a1-472b-96b6-393d0fe1ed73","code":3001,"message":"pushing data to async workflow: unable to unmarshal request: Unsupported operation: synthesis"}
+
+请检查:
+1. .env 文件中的配置是否正确
+2. AccessKey、SecretKey 和 AppID 是否有效
+3. 网络连接是否正常
+4. 火山引擎控制台中的服务是否已开通

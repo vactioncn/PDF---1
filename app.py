@@ -1,12 +1,19 @@
 import ast
+import asyncio
+import base64
+import hashlib
+import hmac
 import io
 import json
 import os
 import re
 import string
+import sys
 import textwrap
-import unicodedata
 import time
+import unicodedata
+import urllib.parse
+import uuid
 import zipfile
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -23,6 +30,32 @@ from openai import OpenAI, OpenAIError
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from dotenv import load_dotenv
+
+# 尝试导入豆包SDK
+try:
+    from volcenginesdkarkruntime import Ark
+    ARK_SDK_AVAILABLE = True
+except ImportError:
+    ARK_SDK_AVAILABLE = False
+    print("⚠️ volcenginesdkarkruntime 未安装，将使用 requests 方式调用API", flush=True)
+
+# 添加 protocols 模块路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import websockets
+    from protocols import (
+        EventType,
+        MsgType,
+        finish_connection,
+        finish_session,
+        receive_message,
+        start_connection,
+        start_session,
+        wait_for_event,
+    )
+    WEBSOCKETS_AVAILABLE = True
+except ImportError:
+    WEBSOCKETS_AVAILABLE = False
 
 
 load_dotenv()
@@ -42,6 +75,12 @@ def create_app() -> Flask:
     deepseek_base_url = os.environ.get("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
     chunk_token_limit = 2500
     responses_chunk_limit = 1500
+    
+    # 火山引擎播客配置
+    volcengine_tts_access_key = os.environ.get("VOLCENGINE_TTS_ACCESS_KEY", "")
+    volcengine_tts_secret_key = os.environ.get("VOLCENGINE_TTS_SECRET_KEY", "")
+    volcengine_tts_app_id = os.environ.get("VOLCENGINE_TTS_APP_ID", "")
+    volcengine_tts_resource_id = os.environ.get("VOLCENGINE_TTS_RESOURCE_ID", "volc.service_type.10050")
 
     def normalize_heading_for_match(text: str) -> str:
         if not text:
@@ -427,17 +466,6 @@ def create_app() -> Flask:
         content_zh = entry.get("content_zh") or ""
         summary = (entry.get("summary") or "").strip()
 
-        # 计算字数（使用原文）
-        if entry.get("word_count") is not None:
-            try:
-                word_count = int(entry.get("word_count"))
-            except (TypeError, ValueError):
-                normalized = "".join(ch for ch in content if not ch.isspace())
-                word_count = len(normalized)
-        else:
-            normalized = "".join(ch for ch in content if not ch.isspace())
-            word_count = len(normalized)
-
         if not is_chinese_text(title):
             title_zh = ensure_chinese_translation(title, title_zh, "标题", api_key)
         elif not title_zh:
@@ -447,6 +475,11 @@ def create_app() -> Flask:
             content_zh = ensure_chinese_translation(content, content_zh, "正文内容", api_key)
         elif not content_zh:
             content_zh = content
+
+        # 计算字数：优先使用中文内容，如果没有中文则使用原文
+        content_for_count = content_zh if content_zh and content_zh.strip() else content
+        normalized = "".join(ch for ch in content_for_count if not ch.isspace())
+        word_count = len(normalized)
 
         summary_source_title = title_zh or title
         summary_source_content = content_zh or content
@@ -885,135 +918,849 @@ def create_app() -> Flask:
         finally:
             doc.close()
 
-    def build_generation_prompt(master_prompt: str, payload: Dict[str, str]) -> str:
+    def build_generation_prompt(prompt_parts: Dict[str, str], payload: Dict[str, str]) -> str:
+        """根据用户提供的提示词部分构建完整的生成提示词"""
+        # 将 density 映射到 explanation_density 格式
+        density_map = {
+            "20% 主干": "20% 主干",
+            "50% 核心": "50% 核心",
+            "70% 深度": "70% 深度",
+        }
+        explanation_density = density_map.get(payload.get("density", "50% 核心"), "50% 核心")
+        
+        # 构建输入数据
+        chapter_summary = payload.get("chapterSummary", payload.get("chapterTitle", ""))
+        chapter_fulltext = payload.get("chapterText", "")
+        
+        input_data_json = json.dumps({
+            "user_profile": {
+                "profession": payload.get("userProfession", ""),
+                "reading_goal": payload.get("readingGoal", ""),
+                "focus_preference": payload.get("focus", ""),
+                "explanation_density": explanation_density,
+            },
+            "chapter_summary": chapter_summary,
+            "chapter_fulltext": chapter_fulltext,
+        }, ensure_ascii=False, indent=2)
+        
+        # 组合用户提供的提示词部分
+        intro_prompt = prompt_parts.get("intro_prompt", "").strip()
+        body_prompt = prompt_parts.get("body_prompt", "").strip()
+        quiz_prompt = prompt_parts.get("quiz_prompt", "").strip()
+        question_prompt = prompt_parts.get("question_prompt", "").strip()
+        
+        # 组合完整的提示词
+        combined_prompt = ""
+        if intro_prompt:
+            combined_prompt += f"{intro_prompt}\n\n"
+        if body_prompt:
+            combined_prompt += f"{body_prompt}\n\n"
+        if quiz_prompt:
+            combined_prompt += f"{quiz_prompt}\n\n"
+        if question_prompt:
+            combined_prompt += f"{question_prompt}\n\n"
+        
+        # 构建最终提示词
         return textwrap.dedent(
             f"""
-            {master_prompt.strip()}
+            {combined_prompt.strip()}
 
-            你将收到一段章节原文和测试用户画像，请输出 JSON。具体要求：
-            - 遵循测试用户提供的"解读密度"。
-            - 输出字段：personalized_intro, interpretation, summary_and_application, powerful_questions, quiz.
-            - quiz 字段必须是对象数组，每一项含 question, options (数组), answer (单个选项字母), explanation。
+            请严格按照上述要求，基于以下输入生成解读内容：
 
-            测试输入：
-            章节标题：{payload["chapterTitle"]}
-            用户职业：{payload["userProfession"]}
-            阅读目的：{payload["readingGoal"]}
-            关注重点：{payload["focus"]}
-            解读密度：{payload["density"]}
-            章节原文：
-            {payload["chapterText"]}
+            {input_data_json}
 
-            直接输出严格符合上述结构的 JSON。
+            【输出要求】
+            1. **必须先展示详细的思考过程**（使用 <thinking>...</thinking> 标签包裹），然后再输出JSON
+            2. 最终输出必须是有效的 JSON 格式，不要有任何额外的说明文字、前缀或后缀
+            3. 不要使用 markdown 代码块标记（如 ```json 或 ```）
+            4. 输出的第一个字符必须是 {{，最后一个字符必须是 }}
+
+            【输出格式】
+            必须是一个有效的 JSON 对象，包含以下字段：
+            {{
+              "personalized_intro": "个性化导读摘要（字符串）",
+              "interpretation": "正文讲解（字符串）",
+              "summary_and_application": "现实生活中的举一反三应用（字符串）",
+              "powerful_questions": "一个最强有力的思考问题（字符串）",
+              "quiz": [
+                {{
+                  "question": "题目内容",
+                  "options": ["选项A", "选项B", "选项C", "选项D"],
+                  "answer": "正确答案",
+                  "explanation": "解析说明"
+                }}
+              ]
+            }}
+
+            现在请直接输出 JSON，不要有任何其他内容：
             """
         ).strip()
 
-    def call_llm(master_prompt: str, payload: Dict[str, str]) -> Dict[str, Any]:
-        api_key = os.environ.get("DOUBAO_API_KEY") or load_setting("doubao_api_key", "")
-        if not api_key:
-            raise RuntimeError("缺少 DOUBAO_API_KEY，请在环境变量或设置中配置豆包密钥。")
+    def _strip_deepseek_reasoning(content: str) -> str:
+        """移除DeepSeek R1返回中的<think>推理和多余前缀，只保留最终译文"""
+        if not content:
+            return ""
+        cleaned = re.sub(r"<think>.*?</think>", "", content, flags=re.IGNORECASE | re.DOTALL)
+        # DeepSeek可能在最终回答前加上"Answer:"或"最终答案:"等提示
+        for marker in ["Answer:", "Final Answer:", "最终答案：", "最终答案:"]:
+            if marker in cleaned:
+                cleaned = cleaned.split(marker, 1)[-1]
+        return cleaned.strip()
 
-        model = os.environ.get("DOUBAO_MODEL") or load_setting("doubao_model", "doubao-seed-1-6")
-        configured_base = (
-            os.environ.get("DOUBAO_API_BASE")
-            or load_setting("doubao_api_base", "")
-        ).strip()
-        candidate_endpoints = []
-        if configured_base:
-            configured_base = configured_base.rstrip("/")
-            if configured_base.endswith("/chat/completions"):
-                candidate_endpoints.append(configured_base)
-            else:
-                candidate_endpoints.append(f"{configured_base}/chat/completions")
-        candidate_endpoints.append("https://ark.cn-beijing.volces.com/api/v3/chat/completions")
-
-        prompt = build_generation_prompt(master_prompt, payload)
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        }
-
-        # 尝试两种格式：简单字符串格式和数组格式
-        payloads = [
-            {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": master_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-            },
-            {
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": [{"type": "text", "text": master_prompt}]},
-                    {"role": "user", "content": [{"type": "text", "text": prompt}]},
-                ],
-            },
-        ]
-
-        last_error: Optional[Exception] = None
-        response_data: Optional[Dict[str, Any]] = None
-
-        for endpoint in candidate_endpoints:
-            for payload_item in payloads:
-                if last_error:
-                    time.sleep(0.3)
-                try:
-                    response = requests.post(
-                        endpoint,
-                        headers=headers,
-                        json=payload_item,
-                        timeout=120,
-                    )
-                    if response.status_code == 404:
-                        last_error = RuntimeError(f"豆包接口 404：{endpoint}")
-                        continue
-                    response.raise_for_status()
-                    response_data = response.json()
-                    break
-                except requests.RequestException as exc:
-                    last_error = exc
-                    continue
-            if response_data is not None:
+    def _extract_thinking_and_json(content: str) -> tuple[str, str]:
+        """提取豆包深度思考模型的推理过程和JSON部分
+        
+        返回: (thinking_process, json_content)
+        """
+        if not content:
+            return "", ""
+        
+        thinking_process = ""
+        json_content = content
+        
+        # 提取推理过程（可能存在的格式）
+        # 格式1: <thinking>...</thinking>
+        thinking_match = re.search(r'<thinking>(.*?)</thinking>', content, re.IGNORECASE | re.DOTALL)
+        if thinking_match:
+            thinking_process = thinking_match.group(1).strip()
+            json_content = re.sub(r'<thinking>.*?</thinking>', '', json_content, flags=re.IGNORECASE | re.DOTALL)
+        
+        # 格式2: <reasoning>...</reasoning>
+        reasoning_match = re.search(r'<reasoning>(.*?)</reasoning>', content, re.IGNORECASE | re.DOTALL)
+        if reasoning_match:
+            if thinking_process:
+                thinking_process += "\n\n---\n\n"
+            thinking_process += reasoning_match.group(1).strip()
+            json_content = re.sub(r'<reasoning>.*?</reasoning>', '', json_content, flags=re.IGNORECASE | re.DOTALL)
+        
+        # 格式3: 豆包可能使用其他格式，如 ```thinking ... ``` 或 [思考过程] ... [/思考过程]
+        thinking_code_match = re.search(r'```thinking\s*(.*?)```', content, re.IGNORECASE | re.DOTALL)
+        if thinking_code_match:
+            if thinking_process:
+                thinking_process += "\n\n---\n\n"
+            thinking_process += thinking_code_match.group(1).strip()
+            json_content = re.sub(r'```thinking\s*.*?```', '', json_content, flags=re.IGNORECASE | re.DOTALL)
+            print(f"✅ 使用格式3提取到思考过程（长度: {len(thinking_code_match.group(1))} 字符）", flush=True)
+        
+        # 格式4: 豆包可能直接在内容前面输出思考过程，没有标签（尝试提取JSON之前的所有内容）
+        if not thinking_process:
+            # 查找第一个 { 的位置
+            json_start = content.find('{')
+            if json_start > 100:  # 如果JSON之前有大量内容，可能是思考过程
+                potential_thinking = content[:json_start].strip()
+                # 检查是否包含思考相关的关键词
+                thinking_keywords = ['思考', '分析', '理解', '需求', '用户', '章节', '内容', '组织', '选择', '设计']
+                if any(keyword in potential_thinking for keyword in thinking_keywords):
+                    thinking_process = potential_thinking
+                    json_content = content[json_start:]
+                    print(f"✅ 使用格式4提取到思考过程（长度: {len(thinking_process)} 字符）", flush=True)
+        
+        # 清理JSON部分
+        # 移除可能存在的markdown代码块标记
+        json_content = re.sub(r'```json\s*', '', json_content, flags=re.IGNORECASE)
+        json_content = re.sub(r'```\s*$', '', json_content, flags=re.MULTILINE)
+        json_content = re.sub(r'^```\s*', '', json_content, flags=re.MULTILINE)
+        
+        # 移除常见的非JSON前缀
+        for marker in [
+            "以下是", "以下是JSON", "JSON格式如下", "JSON:", "json:",
+            "Answer:", "回答:", "输出:", "结果:", "生成结果:",
+            "根据要求，", "按照要求，", "以下是解读结果："
+        ]:
+            if json_content.strip().startswith(marker):
+                json_content = json_content.replace(marker, "", 1).strip()
+        
+        # 移除可能的说明文字（在JSON之前）
+        lines = json_content.split('\n')
+        json_start_idx = -1
+        for i, line in enumerate(lines):
+            if line.strip().startswith('{'):
+                json_start_idx = i
                 break
+        if json_start_idx > 0:
+            json_content = '\n'.join(lines[json_start_idx:])
+        
+        return thinking_process.strip(), json_content.strip()
+    
+    def _clean_doubao_response(content: str) -> str:
+        """清理豆包深度思考模型的返回内容，提取JSON部分（保留向后兼容）"""
+        _, json_content = _extract_thinking_and_json(content)
+        return json_content
 
-        if response_data is None:
-            raise RuntimeError(f"豆包接口请求失败：{last_error}")
-
-        data = response_data
-        if isinstance(data, dict) and data.get("code") not in (0, None):
-            raise RuntimeError(f"豆包接口返回错误：{data.get('msg', '未知错误')}")
-
-        choices = None
-        if isinstance(data, dict):
-            if "choices" in data:
-                choices = data["choices"]
-            else:
-                choices = data.get("data", {}).get("choices")
-        if not choices:
-            raise RuntimeError("豆包接口未返回任何结果。")
-
-        message = choices[0].get("message", {})
-        content_text = ""
-        if isinstance(message, dict):
-            content_items = message.get("content")
-            if isinstance(content_items, list):
-                texts = [
-                    item.get("text", "")
-                    for item in content_items
-                    if isinstance(item, dict) and item.get("type") == "text"
-                ]
-                content_text = "".join(texts).strip()
-            else:
-                content_text = str(message.get("content", "")).strip()
-        if not content_text:
-            raise RuntimeError("豆包接口返回的内容为空。")
-
+    def _fix_json_control_chars(json_str: str) -> str:
+        """修复JSON字符串中的控制字符问题"""
+        if not json_str:
+            return json_str
+        
+        # 方法1: 使用json.loads的strict=False模式（但这需要修改解析方式）
+        # 方法2: 手动转义字符串中的控制字符
+        
+        # 尝试找到JSON对象的结构，然后修复字符串值中的控制字符
         try:
-            return json.loads(content_text)
-        except json.JSONDecodeError:
-            raise RuntimeError("豆包接口返回的内容不是有效的 JSON 格式。")
+            # 使用正则表达式找到所有字符串值，并转义其中的控制字符
+            # 这个正则匹配JSON字符串值（在引号内的内容）
+            def escape_control_chars(match):
+                # 获取匹配的字符串内容（不包括引号）
+                full_match = match.group(0)
+                quote_char = match.group(1)  # 引号字符 " 或 '
+                string_content = match.group(2)  # 字符串内容
+                
+                # 转义控制字符（保留已转义的字符）
+                # 替换未转义的换行符、制表符等
+                fixed_content = string_content
+                
+                # 转义换行符（但保留已转义的\n）
+                fixed_content = re.sub(r'(?<!\\)\n', '\\n', fixed_content)
+                # 转义回车符
+                fixed_content = re.sub(r'(?<!\\)\r', '\\r', fixed_content)
+                # 转义制表符
+                fixed_content = re.sub(r'(?<!\\)\t', '\\t', fixed_content)
+                # 转义其他控制字符（ASCII 0-31，除了已处理的）
+                # 但要注意不要破坏已转义的字符
+                
+                return quote_char + fixed_content + quote_char
+            
+            # 匹配JSON字符串（处理转义的引号和未转义的引号）
+            # 这是一个简化的方法：先尝试解析，如果失败则修复
+            return json_str
+            
+        except Exception:
+            return json_str
+    
+    def _fix_json_string(json_str: str) -> str:
+        """修复JSON字符串中的控制字符和格式问题
+        
+        逐字符扫描JSON字符串：
+        1. 在字符串值内部：转义所有未转义的控制字符（ASCII 0-31）
+        2. 在字符串外部：只保留允许的空白字符（\n, \r, \t, 空格），移除其他控制字符
+        """
+        if not json_str:
+            return json_str
+        
+        result = []
+        in_string = False
+        escape_next = False
+        i = 0
+        
+        # 允许的空白字符（在字符串外部）
+        allowed_whitespace = {'\n', '\r', '\t', ' '}
+        
+        while i < len(json_str):
+            char = json_str[i]
+            char_code = ord(char)
+            
+            # 处理转义字符
+            if escape_next:
+                # 当前字符是转义后的，直接添加（不进行控制字符检查）
+                result.append(char)
+                escape_next = False
+                i += 1
+                continue
+            
+            # 遇到反斜杠，下一个字符是转义的
+            if char == '\\':
+                result.append(char)
+                escape_next = True
+                i += 1
+                continue
+            
+            # 遇到双引号，切换字符串状态
+            if char == '"':
+                in_string = not in_string
+                result.append(char)
+                i += 1
+                continue
+            
+            # 在字符串内部：转义控制字符
+            if in_string:
+                # ASCII控制字符（0-31）需要转义
+                if char_code < 32:
+                    if char == '\n':
+                        result.append('\\n')
+                    elif char == '\r':
+                        result.append('\\r')
+                    elif char == '\t':
+                        result.append('\\t')
+                    elif char == '\b':
+                        result.append('\\b')
+                    elif char == '\f':
+                        result.append('\\f')
+                    elif char == '\x00':
+                        result.append('\\u0000')
+                    else:
+                        # 其他控制字符使用Unicode转义
+                        result.append(f'\\u{char_code:04x}')
+                else:
+                    result.append(char)
+            else:
+                # 在字符串外部：只保留允许的空白字符，移除其他控制字符
+                if char_code < 32:
+                    if char in allowed_whitespace:
+                        # 保留允许的空白字符
+                        result.append(char)
+                    else:
+                        # 移除其他控制字符（不添加到结果中）
+                        pass  # 跳过这个字符
+                else:
+                    result.append(char)
+            
+            i += 1
+        
+        return ''.join(result)
+
+    def _add_debug_info_to_result(result: Dict[str, Any], debug_info: Dict[str, Any], content_text: str) -> Dict[str, Any]:
+        """为结果添加调试信息和思考过程"""
+        print(f"\n🔍 _add_debug_info_to_result 开始处理", flush=True)
+        print(f"   content_text 长度: {len(content_text) if content_text else 0} 字符", flush=True)
+        print(f"   content_text 前200字符: {content_text[:200] if content_text else 'N/A'}...", flush=True)
+        
+        # 提取思考过程
+        thinking_process, _ = _extract_thinking_and_json(content_text)
+        print(f"   第一次提取结果: thinking_process 长度={len(thinking_process) if thinking_process else 0}", flush=True)
+        
+        # 如果没有检测到思考过程，但JSON之前有内容，也尝试添加
+        if not thinking_process:
+            json_start = content_text.find('{')
+            print(f"   未检测到思考过程，检查JSON位置: {json_start}", flush=True)
+            if json_start > 100:
+                potential_thinking = content_text[:json_start].strip()
+                print(f"   JSON之前的内容长度: {len(potential_thinking)} 字符", flush=True)
+                if len(potential_thinking) > 200:
+                    thinking_process = potential_thinking
+                    print(f"   ✅ 使用JSON之前的内容作为思考过程（长度: {len(thinking_process)} 字符）", flush=True)
+        
+        # 如果没有检测到推理过程，尝试从原始内容中提取（可能格式不同）
+        if not thinking_process:
+            print(f"   尝试使用正则表达式提取思考过程...", flush=True)
+            raw_thinking_patterns = [
+                r'思考[：:]\s*(.*?)(?=\n\n|\n\{|$)',
+                r'推理[：:]\s*(.*?)(?=\n\n|\n\{|$)',
+                r'分析[：:]\s*(.*?)(?=\n\n|\n\{|$)',
+            ]
+            for pattern in raw_thinking_patterns:
+                match = re.search(pattern, content_text, re.IGNORECASE | re.DOTALL)
+                if match:
+                    raw_thinking = match.group(1).strip()
+                    if len(raw_thinking) > 50:
+                        thinking_process = raw_thinking
+                        print(f"   ✅ 使用正则表达式提取到思考过程（长度: {len(thinking_process)} 字符）", flush=True)
+                        break
+        
+        # 添加思考过程
+        if thinking_process:
+            result["_thinking_process"] = thinking_process
+            print(f"✅ 思考过程已添加到返回结果中（长度: {len(thinking_process)} 字符）", flush=True)
+            print(f"   思考过程前500字符: {thinking_process[:500]}...", flush=True)
+        else:
+            print("⚠️ 未检测到思考过程", flush=True)
+            print(f"   content_text 中是否包含 '<thinking>': {'<thinking>' in content_text if content_text else False}", flush=True)
+            print(f"   content_text 中是否包含 '思考': {'思考' in content_text if content_text else False}", flush=True)
+        
+        # 添加调试信息
+        result["_debug_info"] = debug_info
+        print(f"✅ 调试信息已添加到返回结果中: model={debug_info.get('model')}", flush=True)
+        print(f"🔍 _add_debug_info_to_result 处理完成\n", flush=True)
+        
+        return result
+
+    def call_llm(prompt_parts: Dict[str, str], payload: Dict[str, str]) -> Dict[str, Any]:
+        """使用豆包深度思考模型进行解读生成"""
+        api_key = os.environ.get("DOUBAO_API_KEY") or os.environ.get("ARK_API_KEY") or load_setting("doubao_api_key", "") or load_setting("ark_api_key", "")
+        if not api_key:
+            raise RuntimeError("缺少 DOUBAO_API_KEY 或 ARK_API_KEY，请在环境变量中配置豆包密钥。")
+
+        # 豆包深度思考模型（根据官方示例，使用 doubao-seed-1-6-251015）
+        model = "doubao-seed-1-6-251015"
+        
+        prompt = build_generation_prompt(prompt_parts, payload)
+
+        # 构建系统消息，只要求JSON格式和思考过程，不添加任何长度限制
+        system_message = """你是一个专业的JSON格式输出助手，使用深度思考模式。
+
+【关键要求】
+- **重要**：你必须先展示你的详细思考过程（使用 <thinking>...</thinking> 标签包裹），然后再输出JSON
+- 思考过程应该详细、完整，包括如何理解需求、如何组织内容等
+- 最终输出必须是有效的JSON格式，不要有任何额外的说明文字、markdown标记或注释
+- JSON输出的第一个字符必须是 {，最后一个字符必须是 }
+- 不要使用 ```json 或 ``` 等markdown代码块标记
+- 严格按照用户提示词的要求生成内容"""
+
+        # 从payload中读取参数，如果没有则使用默认值
+        temperature = float(payload.get("temperature", 0.3))
+        max_tokens = int(payload.get("max_tokens", 16000))
+        thinking_enabled = payload.get("thinking", "auto")  # "auto" 表示模型自动触发
+        
+        # 保存调试信息，用于后续添加到返回结果中
+        debug_info = {
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "thinking": "auto (模型自动触发)" if thinking_enabled == "auto" else thinking_enabled,  # 模型会自动触发深度思考，不需要显式传递参数
+            "stream": False,
+        }
+        
+        try:
+            # 优先使用 SDK 方式调用
+            if ARK_SDK_AVAILABLE:
+                print(f"✅ 使用 volcenginesdkarkruntime SDK 调用豆包深度思考模型: 模型={model}, 深度思考模式=已启用", flush=True)
+                
+                # 构建 base_url（默认使用官方地址）
+                base_url = "https://ark.cn-beijing.volces.com/api/v3"
+                configured_base = (
+                    os.environ.get("DOUBAO_API_BASE")
+                    or load_setting("doubao_api_base", "")
+                ).strip()
+                
+                if configured_base:
+                    configured_base = configured_base.rstrip("/")
+                    if configured_base.endswith("/api/v3"):
+                        base_url = configured_base
+                    elif configured_base.endswith("/api/v3/chat/completions"):
+                        base_url = configured_base.replace("/chat/completions", "")
+                    elif "/api/v3" not in configured_base:
+                        base_url = f"{configured_base}/api/v3"
+                    else:
+                        base_url = configured_base
+                
+                print(f"📡 使用 base_url: {base_url}", flush=True)
+                print(f"🔑 API Key 长度: {len(api_key) if api_key else 0}", flush=True)
+                print(f"⚙️ 参数: temperature={temperature}, max_tokens={max_tokens}, thinking={thinking_enabled}", flush=True)
+                
+                # 严格按照官方示例代码初始化客户端
+                client = Ark(
+                    base_url=base_url,
+                    api_key=api_key,
+                    timeout=1800,  # 30分钟超时，深度思考模型需要较长时间
+                )
+                
+                print(f"📤 发送请求: model={model} (模型会自动触发深度思考)", flush=True)
+                
+                # 构建API调用参数
+                api_params = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                
+                # 如果thinking不是"auto"，则传递thinking参数（如果需要显式启用）
+                # 注意：深度思考模型通常会自动触发，但为了灵活性，我们支持传递参数
+                if thinking_enabled != "auto" and thinking_enabled:
+                    if isinstance(thinking_enabled, dict):
+                        api_params["thinking"] = thinking_enabled
+                    elif thinking_enabled.lower() in ["enabled", "true", "1"]:
+                        api_params["thinking"] = {"type": "enabled"}
+                
+                # 严格按照官方示例代码调用（不需要传递 thinking 参数，模型会自动触发深度思考）
+                response = client.chat.completions.create(**api_params)
+                
+                # 严格按照官方文档和测试结果提取内容
+                # 响应结构: response.choices[0].message.content
+                # 深度思考内容在: response.choices[0].message.reasoning_content
+                choice = response.choices[0]
+                message = choice.message
+                content_text = message.content
+                
+                # 确保 content_text 是字符串
+                if not isinstance(content_text, str):
+                    content_text = str(content_text) if content_text else ""
+                
+                content_text = content_text.strip()
+                
+                print(f"✅ 成功提取 content_text，长度: {len(content_text)} 字符", flush=True)
+                
+                # 深度思考模型返回的思考过程在 message.reasoning_content 中
+                # 注意：我们直接保存 reasoning_content，不添加到 content_text 中
+                # 因为 _add_debug_info_to_result 会处理思考过程的提取和添加
+                reasoning_content = None
+                if hasattr(message, 'reasoning_content') and message.reasoning_content:
+                    reasoning_content = message.reasoning_content
+                    if isinstance(reasoning_content, str) and reasoning_content.strip():
+                        print(f"✅ 检测到 reasoning_content（深度思考内容，长度: {len(reasoning_content)} 字符）", flush=True)
+                        # 将 reasoning_content 添加到 content_text 前面，用标签包裹，这样后续的 _extract_thinking_and_json 可以提取
+                        content_text = f"<thinking>\n{reasoning_content}\n</thinking>\n\n{content_text}"
+                    else:
+                        print(f"⚠️ reasoning_content 存在但为空", flush=True)
+                else:
+                    print(f"⚠️ 未找到 reasoning_content 字段", flush=True)
+                    # 检查 message 的所有属性，看看是否有其他字段
+                    print(f"📋 message 的所有属性: {[attr for attr in dir(message) if not attr.startswith('_')]}", flush=True)
+                
+                debug_info["endpoint"] = f"SDK (volcenginesdkarkruntime) - {base_url}"
+                debug_info["method"] = "SDK"
+                debug_info["base_url"] = base_url
+                
+            else:
+                # 降级使用 requests 方式
+                print(f"⚠️ 使用 requests 方式调用豆包深度思考模型: 模型={model}", flush=True)
+                
+                # 构建端点
+                configured_base = (
+                    os.environ.get("DOUBAO_API_BASE")
+                    or load_setting("doubao_api_base", "")
+                ).strip()
+                
+                if configured_base:
+                    configured_base = configured_base.rstrip("/")
+                    if configured_base.endswith("/chat/completions"):
+                        endpoint = configured_base
+                    else:
+                        endpoint = f"{configured_base}/chat/completions"
+                else:
+                    endpoint = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                }
+
+                request_payload = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "stream": False,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                
+                # 如果thinking不是"auto"，则传递thinking参数
+                if thinking_enabled != "auto" and thinking_enabled:
+                    if isinstance(thinking_enabled, dict):
+                        request_payload["thinking"] = thinking_enabled
+                    elif thinking_enabled.lower() in ["enabled", "true", "1"]:
+                        request_payload["thinking"] = {
+                            "type": "enabled"  # 使用正确的 thinking 参数格式
+                        }
+                
+                debug_info["endpoint"] = endpoint
+                debug_info["method"] = "requests"
+                
+                response = requests.post(
+                    endpoint,
+                    headers=headers,
+                    json=request_payload,
+                    timeout=1800,  # 30分钟超时
+                )
+                
+                response.raise_for_status()
+                data = response.json()
+
+                if "choices" not in data or not data["choices"]:
+                    raise RuntimeError("豆包接口未返回任何结果。")
+
+                message = data["choices"][0].get("message", {})
+                content_text = message.get("content", "").strip()
+            
+            # 处理content可能是数组格式的情况
+            if isinstance(content_text, list):
+                text_content = ""
+                for item in content_text:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        text_content += item.get("text", "")
+                content_text = text_content.strip()
+
+            if not content_text:
+                raise RuntimeError("豆包接口返回的内容为空。")
+
+            # 记录原始返回内容（用于调试）
+            print(f"📝 原始返回内容长度: {len(content_text)} 字符", flush=True)
+            print(f"📝 原始返回内容前1000字符:\n{content_text[:1000]}\n", flush=True)
+            print(f"📝 原始返回内容后1000字符:\n{content_text[-1000:] if len(content_text) > 1000 else content_text}\n", flush=True)
+            
+            # 检查是否包含thinking标签
+            if '<thinking>' in content_text or '<thinking>' in content_text.lower():
+                print(f"✅ 原始内容中包含 <thinking> 标签", flush=True)
+            else:
+                print(f"⚠️ 原始内容中不包含 <thinking> 标签", flush=True)
+            
+            # 检查JSON部分的大概位置
+            json_start = content_text.find('{')
+            if json_start > 0:
+                print(f"📊 JSON开始位置: {json_start} 字符，之前的内容长度: {json_start} 字符", flush=True)
+                if json_start > 100:
+                    print(f"📊 JSON之前的内容可能是思考过程，前500字符:\n{content_text[:min(500, json_start)]}\n", flush=True)
+            
+            # 提取推理过程和JSON内容
+            thinking_process, json_content = _extract_thinking_and_json(content_text)
+            
+            # 记录推理过程（如果有）
+            if thinking_process:
+                print(f"✅ 检测到推理过程（长度: {len(thinking_process)} 字符）", flush=True)
+                print(f"推理过程完整内容:\n{'='*80}\n{thinking_process}\n{'='*80}\n", flush=True)
+            else:
+                print("⚠️ 未检测到推理过程，可能模型未返回思考过程", flush=True)
+                print(f"⚠️ 原始内容中是否包含 'thinking': {'thinking' in content_text.lower()}", flush=True)
+                print(f"⚠️ 原始内容中是否包含 '<': {'<' in content_text}", flush=True)
+                print(f"⚠️ 原始内容中是否包含 '思考': {'思考' in content_text}", flush=True)
+                
+                # 尝试显示JSON之前的所有内容（可能是思考过程但没有标签）
+                if json_start > 100:
+                    potential_thinking = content_text[:json_start].strip()
+                    print(f"⚠️ JSON之前的内容（可能是未标记的思考过程，长度: {len(potential_thinking)} 字符）:\n{potential_thinking[:500]}...\n", flush=True)
+            
+            # 修复JSON中的控制字符问题
+            fixed_content = _fix_json_string(json_content)
+            
+            # 调试：检查修复前后的差异
+            if json_content != fixed_content:
+                # 统计修复的控制字符数量
+                fixed_chars = 0
+                for i, (a, b) in enumerate(zip(json_content, fixed_content)):
+                    if a != b:
+                        fixed_chars += 1
+                        if fixed_chars == 1:  # 只记录第一个
+                            char_code = ord(a) if i < len(json_content) else 0
+                            print(f"检测到控制字符并已修复（位置: {i}，原字符码: {char_code}，字符: {repr(a)}）", flush=True)
+                print(f"共修复 {fixed_chars} 个控制字符", flush=True)
+            
+            # 验证修复后的JSON是否还有控制字符（在字符串外部）
+            has_control_chars = False
+            in_str = False
+            escape = False
+            for i, c in enumerate(fixed_content):
+                if escape:
+                    escape = False
+                    continue
+                if c == '\\':
+                    escape = True
+                    continue
+                if c == '"':
+                    in_str = not in_str
+                    continue
+                if not in_str and ord(c) < 32 and c not in '\n\r\t ':
+                    if not has_control_chars:
+                        print(f"警告：修复后的JSON在字符串外部仍有控制字符（位置: {i}，字符: {repr(c)}，ASCII: {ord(c)}）", flush=True)
+                        has_control_chars = True
+            
+            # 尝试解析 JSON
+            try:
+                result = json.loads(fixed_content)
+                print(f"✅ JSON解析成功！", flush=True)
+                
+                # 检查interpretation字段的长度
+                if "interpretation" in result:
+                    interpretation_length = len(result["interpretation"])
+                    print(f"📊 interpretation字段长度: {interpretation_length} 字符", flush=True)
+                    if interpretation_length < 1000:
+                        print(f"⚠️ 警告：interpretation字段过短（{interpretation_length} 字符），应该至少1500-3000字", flush=True)
+                        print(f"⚠️ 建议：检查提示词是否明确要求了足够的输出长度", flush=True)
+                    elif interpretation_length < 2000:
+                        print(f"⚠️ 注意：interpretation字段较短（{interpretation_length} 字符），如果原始内容较长，建议输出更多", flush=True)
+                    else:
+                        print(f"✅ interpretation字段长度正常（{interpretation_length} 字符）", flush=True)
+                
+                # 添加调试信息和思考过程
+                result = _add_debug_info_to_result(result, debug_info, content_text)
+                
+                return result
+            except json.JSONDecodeError as e:
+                # 记录详细的错误信息
+                error_pos = getattr(e, 'pos', None)
+                error_msg = str(e)
+                print(f"JSON解析失败: {error_msg}", flush=True)
+                
+                if error_pos is not None:
+                    print(f"错误位置: {error_pos} (总长度: {len(fixed_content)})", flush=True)
+                    
+                    # 显示错误位置的上下文
+                    context_start = max(0, error_pos - 100)
+                    context_end = min(len(fixed_content), error_pos + 100)
+                    error_context = fixed_content[context_start:context_end]
+                    
+                    # 标记错误位置
+                    marker_pos = error_pos - context_start
+                    marked_context = error_context[:marker_pos] + ">>>ERROR<<<" + error_context[marker_pos:marker_pos+1] + error_context[marker_pos+1:]
+                    
+                    print(f"错误上下文: {marked_context}", flush=True)
+                    
+                    # 显示错误字符的详细信息
+                    if error_pos < len(fixed_content):
+                        error_char = fixed_content[error_pos]
+                        char_code = ord(error_char)
+                        print(f"错误字符: {repr(error_char)}, ASCII码: {char_code}, Unicode: U+{char_code:04X}", flush=True)
+                        
+                        # 检查是否是控制字符
+                        if char_code < 32:
+                            print(f"这是一个控制字符，应该在字符串内部被转义", flush=True)
+                            # 尝试再次修复（可能第一次修复有问题）
+                            print("尝试重新修复控制字符...", flush=True)
+                            re_fixed = _fix_json_string(fixed_content)
+                            if re_fixed != fixed_content:
+                                print("重新修复后发现变化，尝试解析...", flush=True)
+                                try:
+                                    result = json.loads(re_fixed)
+                                    # 添加调试信息和思考过程
+                                    result = _add_debug_info_to_result(result, debug_info, content_text)
+                                    return result
+                                except:
+                                    pass
+                    
+                    # 显示修复前后的对比
+                    if error_pos < len(fixed_content):
+                        original_char = fixed_content[error_pos] if error_pos < len(fixed_content) else ''
+                        print(f"原始字符: {repr(original_char)}, ASCII码: {ord(original_char) if original_char else 'N/A'}", flush=True)
+                
+                # 如果错误信息包含 "control character"，尝试更激进的修复
+                if "control character" in error_msg.lower() or "control" in error_msg.lower():
+                    print("检测到控制字符错误，尝试更激进的修复...", flush=True)
+                    # 尝试移除所有控制字符（在字符串外部）
+                    aggressive_fixed = []
+                    in_str = False
+                    escape = False
+                    for i, c in enumerate(fixed_content):
+                        if escape:
+                            aggressive_fixed.append(c)
+                            escape = False
+                            continue
+                        if c == '\\':
+                            aggressive_fixed.append(c)
+                            escape = True
+                            continue
+                        if c == '"':
+                            in_str = not in_str
+                            aggressive_fixed.append(c)
+                            continue
+                        if not in_str and ord(c) < 32 and c not in '\n\r\t':
+                            # 在字符串外部移除控制字符（除了换行、回车、制表符）
+                            continue
+                        aggressive_fixed.append(c)
+                    
+                    try:
+                        result = json.loads(''.join(aggressive_fixed))
+                        print("激进修复成功！", flush=True)
+                        # 添加调试信息和思考过程
+                        result = _add_debug_info_to_result(result, debug_info, content_text)
+                        return result
+                    except:
+                        pass
+                
+                raise
+            except ValueError as e:
+                # 如果直接解析失败，尝试多种方式提取 JSON
+                # 注意：re 已经在文件顶部导入，不需要在这里重新导入
+                
+                # 方法1: 提取第一个完整的JSON对象（从{到匹配的}）
+                json_patterns = [
+                    r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}',  # 简单嵌套
+                    r'\{.*?\}',  # 非贪婪匹配
+                ]
+                
+                for pattern in json_patterns:
+                    json_match = re.search(pattern, json_content, re.DOTALL)
+                    if json_match:
+                        try:
+                            json_candidate = json_match.group(0)
+                            # 修复控制字符后再解析
+                            fixed_candidate = _fix_json_string(json_candidate)
+                            result = json.loads(fixed_candidate)
+                            print(f"成功从内容中提取JSON（使用模式: {pattern}）", flush=True)
+                            # 添加调试信息和思考过程
+                            result = _add_debug_info_to_result(result, debug_info, content_text)
+                            return result
+                        except (json.JSONDecodeError, ValueError):
+                            continue
+                
+                # 方法2: 尝试找到最长的JSON-like字符串
+                brace_count = 0
+                start_idx = -1
+                best_match = None
+                best_length = 0
+                
+                for i, char in enumerate(json_content):
+                    if char == '{':
+                        if brace_count == 0:
+                            start_idx = i
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0 and start_idx != -1:
+                            candidate = json_content[start_idx:i+1]
+                            if len(candidate) > best_length:
+                                try:
+                                    # 修复控制字符后验证
+                                    fixed_candidate = _fix_json_string(candidate)
+                                    json.loads(fixed_candidate)  # 验证是否为有效JSON
+                                    best_match = fixed_candidate
+                                    best_length = len(candidate)
+                                except (json.JSONDecodeError, ValueError):
+                                    pass
+                
+                if best_match:
+                    try:
+                        result = json.loads(best_match)
+                        print(f"成功提取最长有效JSON片段（长度: {len(best_match)}）", flush=True)
+                        # 添加调试信息和思考过程
+                        result = _add_debug_info_to_result(result, debug_info, content_text)
+                        return result
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                
+                # 如果所有方法都失败，输出调试信息
+                print(f"JSON解析失败。返回内容前500字符: {json_content[:500]}", flush=True)
+                print(f"JSON解析错误: {e}", flush=True)
+                
+                # 尝试修复常见的JSON格式问题
+                try:
+                    # 移除尾部的多余字符
+                    repair_content = json_content.rstrip('.,;。，；\n\r\t ')
+                    # 确保以}结尾
+                    if not repair_content.rstrip().endswith('}'):
+                        # 尝试找到最后一个}
+                        last_brace = repair_content.rfind('}')
+                        if last_brace > 0:
+                            repair_content = repair_content[:last_brace+1]
+                    
+                    # 再次修复控制字符
+                    repair_content = _fix_json_string(repair_content)
+                    result = json.loads(repair_content)
+                    # 添加调试信息和思考过程
+                    result = _add_debug_info_to_result(result, debug_info, content_text)
+                    return result
+                except (json.JSONDecodeError, ValueError):
+                    pass
+                
+                # 保存原始返回内容到日志，方便调试
+                error_detail = f"""
+豆包接口返回的内容不是有效的 JSON 格式。
+
+解析错误: {str(e)}
+
+返回内容长度: {len(json_content)} 字符
+返回内容前500字符:
+{json_content[:500]}
+
+返回内容后500字符:
+{json_content[-500:] if len(json_content) > 500 else json_content}
+"""
+                print(error_detail, flush=True)
+                
+                raise RuntimeError(
+                    f"豆包接口返回的内容不是有效的 JSON 格式。\n"
+                    f"解析错误: {str(e)}\n"
+                    f"返回内容前300字符: {json_content[:300]}\n"
+                    f"请检查服务器日志获取完整返回内容。"
+                )
+        except requests.exceptions.RequestException as exc:
+            error_msg = f"豆包接口请求失败：{exc}"
+            if hasattr(exc, 'response') and exc.response is not None:
+                try:
+                    error_body = exc.response.json()
+                    error_msg += f" - {error_body.get('error', {}).get('message', '')}"
+                except:
+                    error_msg += f" - {exc.response.text[:200]}"
+            raise RuntimeError(error_msg)
+        except Exception as exc:
+            raise RuntimeError(f"豆包解读生成失败：{exc}")
+
+    @app.route("/test_thinking.html")
+    def test_thinking_page():
+        """深度思考模型测试页面"""
+        return send_from_directory(".", "test_thinking.html")
 
     @app.route("/parser_test_page.html")
     def serve_parser_page():
@@ -1026,6 +1773,10 @@ def create_app() -> Flask:
     @app.route("/admin.html")
     def serve_admin_page():
         return send_from_directory(app.static_folder, "admin.html")
+
+    @app.route("/admin_books.html")
+    def serve_admin_books_page():
+        return send_from_directory(app.static_folder, "admin_books.html")
 
     def clean_toc_only(upload: io.BytesIO) -> Dict[str, Any]:
         """仅清洗目录，返回清洗前后的目录对比"""
@@ -2833,13 +3584,478 @@ def create_app() -> Flask:
         except Exception as exc:  # pylint: disable=broad-exception-caught
             return jsonify({"error": f"解析失败：{exc}"}), 500
 
-    @app.get("/api/settings/master_prompt")
-    def get_master_prompt():
+    @app.get("/api/settings/prompt_parts")
+    def get_prompt_parts():
+        """获取分解后的提示词各部分"""
         try:
-            stored_value = load_setting("master_prompt", default="")
-            return jsonify({"value": stored_value})
+            # 默认提示词各部分
+            default_intro_prompt = """【一、个性化导读摘要】
+
+目标：
+
+结合用户偏好（职业 / 阅读目的 / 关注点）+ 章节摘要，为用户生成一段 150–300 字的"个性化导读"。
+
+要求：
+
+清楚告诉用户：
+
+这一节在讲什么；
+
+和他（例如 CEO）有什么关系；
+
+对他的阅读目标（如：提升管理技能）有什么价值；
+
+为什么值得读。
+
+语言口语化，像一个朋友耐心地说：
+
+"如果一句话讲明白，这一节其实是在说……"
+
+不要机械重复章节摘要，要重写。"""
+
+            default_body_prompt = """【二、正文讲解（依照用户选择的密度）】
+
+请用艾思奇 + 费曼的风格，把原文重新讲解出来。
+讲解内容密度取决于 user_profile.explanation_density：
+
+20% 主干：
+
+只讲主线结论 + 最核心的推理；
+
+控制要点约 3–4 个。
+
+50% 核心：
+
+在主干基础上补充关键例子 & 重要细节；
+
+控制要点约 5–7 个。
+
+70% 深度：
+
+覆盖重要分支观点和细节；
+
+控制要点约 8–12 个，但仍比原文更精炼。
+
+讲解结构建议如下（强制）：
+
+整体框架
+
+2–4 句讲清楚这一节的主旨与作者要回答的问题。
+
+分点讲解
+
+以 3–10 个要点展开（数量依照密度）；
+
+每个要点必须包含：
+
+这个观点讲的是什么；
+
+作者为什么这么说（推理链）；
+
+一个通俗例子或比喻；
+
+避免原文照搬。
+
+小结
+
+3–5 句话总结：
+
+这一节的骨架是什么？
+
+哪些是容易忽略的误解？
+
+如果只能记两句话，该记什么？"""
+
+            default_quiz_prompt = """【四、知识点选择题（3–5 题）】
+
+从你的讲解内容中挑选 3–5 个关键知识点，设计成选择题。
+
+每题格式：
+
+第 X 题
+题干：……
+A. ……
+B. ……
+C. ……
+D. ……
+正确答案：X
+解析：用 1–3 句话解释为什么。
+
+要求：
+
+题目必须基于你的讲解（不是原文，也不是扩展内容）；
+
+选项要有迷惑性但不恶意；
+
+重点考核概念理解与逻辑关系。"""
+
+            default_question_prompt = """【五、一个最强有力的思考问题】
+
+结合：
+
+用户职业（根据 user_profile.profession）
+
+阅读目的（根据 user_profile.reading_goal）
+
+内容核心思想
+
+提出 一个 极具力量的开放式问题。
+
+特征：
+
+指向现实，而不是抽象哲学；
+
+帮助用户重新审视自己的行为模式、习惯或决策；
+
+要具体到能让他立即产生自我反思。
+
+避免：
+
+"你有什么收获？"这类泛泛之问；
+
+同时提出多个问题。
+
+示例模板（仅示意）：
+
+"在你最近做的某个关键管理决策里，这一节提到的 X 思想，你最忽略的是哪一部分？" """
+
+            return jsonify({
+                "intro_prompt": load_setting("prompt_intro", default=default_intro_prompt),
+                "body_prompt": load_setting("prompt_body", default=default_body_prompt),
+                "quiz_prompt": load_setting("prompt_quiz", default=default_quiz_prompt),
+                "question_prompt": load_setting("prompt_question", default=default_question_prompt),
+            })
         except SQLAlchemyError as exc:
             return jsonify({"error": f"读取提示词失败：{exc}"}), 500
+
+    @app.post("/api/settings/prompt_parts")
+    def save_prompt_parts():
+        """保存分解后的提示词各部分"""
+        payload = request.get_json() or {}
+        try:
+            if "intro_prompt" in payload:
+                store_setting("prompt_intro", payload["intro_prompt"])
+            if "body_prompt" in payload:
+                store_setting("prompt_body", payload["body_prompt"])
+            if "quiz_prompt" in payload:
+                store_setting("prompt_quiz", payload["quiz_prompt"])
+            if "question_prompt" in payload:
+                store_setting("prompt_question", payload["question_prompt"])
+            return jsonify({"status": "ok"})
+        except SQLAlchemyError as exc:
+            return jsonify({"error": f"保存失败：{exc}"}), 500
+
+    def get_master_prompt():
+        """获取完整的主提示词（兼容旧接口）"""
+        try:
+            # 基础提示词
+            base_prompt = """你是"阅读一本通"的 AI 讲书助手。你的任务不是总结，而是把内容讲懂：用朴实、清晰、逻辑顺的方式，像一位耐心的讲书老师，把书讲得让用户听懂、用得上。
+
+你的讲解风格：
+
+艾思奇：朴实、逻辑清楚、不装；
+
+费曼：把复杂内容讲到中学生都能听懂；
+
+有例子、有推理、有"讲故事感"。
+
+一、输入格式（来自系统）
+
+你会收到以下输入（结构固定）：
+
+{
+  "user_profile": {
+    "profession": "用户职业（由系统提供）",
+    "reading_goal": "用户阅读目的（由系统提供）",
+    "focus_preference": "用户关注重点（由系统提供）",
+    "explanation_density": "解读密度（由系统提供）"
+  },
+  "chapter_summary": "章节摘要",
+  "chapter_fulltext": "章节全文"
+}
+
+说明：
+
+explanation_density 将直接决定讲解的密度，只会出现三种：
+
+"20% 主干"
+
+"50% 核心"
+
+"70% 深度"
+
+你必须严格依照此密度控制讲解的信息量。
+
+二、你的任务（必须按顺序完成 5 个部分）
+
+最终输出包含五部分，请严格按顺序和结构输出："""
+
+            # 获取各部分提示词
+            intro_prompt = load_setting("prompt_intro", default="")
+            body_prompt = load_setting("prompt_body", default="")
+            quiz_prompt = load_setting("prompt_quiz", default="")
+            question_prompt = load_setting("prompt_question", default="")
+            
+            # 如果各部分都有，组合它们；否则使用默认完整提示词
+            if intro_prompt and body_prompt and quiz_prompt and question_prompt:
+                application_prompt = """【三、现实生活中的举一反三应用】
+
+结合用户身份与阅读目标（根据 user_profile 中的 profession 和 reading_goal），输出 2–4 个可落地的应用场景。
+
+每个应用场景必须包含三部分：
+
+【场景】
+
+用一句话说明这是现实中的什么场景；
+
+【怎么用】
+
+给出清晰的步骤或行为建议，不可空泛；
+
+【可能效果】
+
+简短描述执行后可能带来的改善。
+
+例子示范结构（仅供参考）：
+
+场景一：在带团队开会时……
+
+怎么用：……
+
+效果：……
+
+场景二：在产品决策里……
+
+怎么用：……
+
+效果：……"""
+                
+                full_prompt = f"""{base_prompt}
+
+{intro_prompt}
+
+{body_prompt}
+
+{application_prompt}
+
+{quiz_prompt}
+
+{question_prompt}"""
+                return jsonify({"value": full_prompt})
+            else:
+                # 使用默认完整提示词
+                default_prompt = """你是"阅读一本通"的 AI 讲书助手。你的任务不是总结，而是把内容讲懂：用朴实、清晰、逻辑顺的方式，像一位耐心的讲书老师，把书讲得让用户听懂、用得上。
+
+你的讲解风格：
+
+艾思奇：朴实、逻辑清楚、不装；
+
+费曼：把复杂内容讲到中学生都能听懂；
+
+有例子、有推理、有"讲故事感"。
+
+一、输入格式（来自系统）
+
+你会收到以下输入（结构固定）：
+
+{
+  "user_profile": {
+    "profession": "用户职业（由系统提供）",
+    "reading_goal": "用户阅读目的（由系统提供）",
+    "focus_preference": "用户关注重点（由系统提供）",
+    "explanation_density": "解读密度（由系统提供）"
+  },
+  "chapter_summary": "章节摘要",
+  "chapter_fulltext": "章节全文"
+}
+
+说明：
+
+explanation_density 将直接决定讲解的密度，只会出现三种：
+
+"20% 主干"
+
+"50% 核心"
+
+"70% 深度"
+
+你必须严格依照此密度控制讲解的信息量。
+
+二、你的任务（必须按顺序完成 5 个部分）
+
+最终输出包含五部分，请严格按顺序和结构输出：
+
+【一、个性化导读摘要】
+
+目标：
+
+结合用户偏好（职业 / 阅读目的 / 关注点）+ 章节摘要，为用户生成一段 150–300 字的"个性化导读"。
+
+要求：
+
+清楚告诉用户：
+
+这一节在讲什么；
+
+和他（例如 CEO）有什么关系；
+
+对他的阅读目标（如：提升管理技能）有什么价值；
+
+为什么值得读。
+
+语言口语化，像一个朋友耐心地说：
+
+"如果一句话讲明白，这一节其实是在说……"
+
+不要机械重复章节摘要，要重写。
+
+【二、正文讲解（依照用户选择的密度）】
+
+请用艾思奇 + 费曼的风格，把原文重新讲解出来。
+讲解内容密度取决于 user_profile.explanation_density：
+
+20% 主干：
+
+只讲主线结论 + 最核心的推理；
+
+控制要点约 3–4 个。
+
+50% 核心：
+
+在主干基础上补充关键例子 & 重要细节；
+
+控制要点约 5–7 个。
+
+70% 深度：
+
+覆盖重要分支观点和细节；
+
+控制要点约 8–12 个，但仍比原文更精炼。
+
+讲解结构建议如下（强制）：
+
+整体框架
+
+2–4 句讲清楚这一节的主旨与作者要回答的问题。
+
+分点讲解
+
+以 3–10 个要点展开（数量依照密度）；
+
+每个要点必须包含：
+
+这个观点讲的是什么；
+
+作者为什么这么说（推理链）；
+
+一个通俗例子或比喻；
+
+避免原文照搬。
+
+小结
+
+3–5 句话总结：
+
+这一节的骨架是什么？
+
+哪些是容易忽略的误解？
+
+如果只能记两句话，该记什么？
+
+【三、现实生活中的举一反三应用】
+
+结合用户身份与阅读目标（根据 user_profile 中的 profession 和 reading_goal），输出 2–4 个可落地的应用场景。
+
+每个应用场景必须包含三部分：
+
+【场景】
+
+用一句话说明这是现实中的什么场景；
+
+【怎么用】
+
+给出清晰的步骤或行为建议，不可空泛；
+
+【可能效果】
+
+简短描述执行后可能带来的改善。
+
+例子示范结构（仅供参考）：
+
+场景一：在带团队开会时……
+
+怎么用：……
+
+效果：……
+
+场景二：在产品决策里……
+
+怎么用：……
+
+效果：……
+
+【四、知识点选择题（3–5 题）】
+
+从你的讲解内容中挑选 3–5 个关键知识点，设计成选择题。
+
+每题格式：
+
+第 X 题
+题干：……
+A. ……
+B. ……
+C. ……
+D. ……
+正确答案：X
+解析：用 1–3 句话解释为什么。
+
+要求：
+
+题目必须基于你的讲解（不是原文，也不是扩展内容）；
+
+选项要有迷惑性但不恶意；
+
+重点考核概念理解与逻辑关系。
+
+【五、一个最强有力的思考问题】
+
+结合：
+
+用户职业（根据 user_profile.profession）
+
+阅读目的（根据 user_profile.reading_goal）
+
+内容核心思想
+
+提出 一个 极具力量的开放式问题。
+
+特征：
+
+指向现实，而不是抽象哲学；
+
+帮助用户重新审视自己的行为模式、习惯或决策；
+
+要具体到能让他立即产生自我反思。
+
+避免：
+
+"你有什么收获？"这类泛泛之问；
+
+同时提出多个问题。
+
+示例模板（仅示意）：
+
+"在你最近做的某个关键管理决策里，这一节提到的 X 思想，你最忽略的是哪一部分？"
+"""
+                stored_value = load_setting("master_prompt", default=default_prompt)
+                return jsonify({"value": stored_value})
+        except SQLAlchemyError as exc:
+            return jsonify({"error": f"读取提示词失败：{exc}"}), 500
+
+    @app.get("/api/settings/master_prompt")
+    def get_master_prompt_route():
+        """获取完整的主提示词（兼容旧接口）"""
+        return get_master_prompt()
 
     @app.post("/api/settings/master_prompt")
     def save_master_prompt():
@@ -2870,12 +4086,408 @@ def create_app() -> Flask:
         if missing:
             return jsonify({"error": f"缺少字段：{', '.join(missing)}"}), 400
 
-        master_prompt = load_setting("master_prompt", default="你是一个世界级的阅读导师。")
+        # 从请求中获取用户设置的提示词部分
+        intro_prompt = payload.get("intro_prompt", "").strip()
+        body_prompt = payload.get("body_prompt", "").strip()
+        quiz_prompt = payload.get("quiz_prompt", "").strip()
+        question_prompt = payload.get("question_prompt", "").strip()
+        
+        # 如果用户没有提供提示词部分，从设置中加载
+        if not intro_prompt:
+            intro_prompt = load_setting("prompt_intro", default="")
+        if not body_prompt:
+            body_prompt = load_setting("prompt_body", default="")
+        if not quiz_prompt:
+            quiz_prompt = load_setting("prompt_quiz", default="")
+        if not question_prompt:
+            question_prompt = load_setting("prompt_question", default="")
+        
+        # 检查是否有必要的提示词（至少需要正文部分）
+        if not body_prompt:
+            return jsonify({"error": "缺少正文解读提示词，请在提示词调适界面中设置"}), 400
+        
+        # 构建提示词部分字典
+        prompt_parts = {
+            "intro_prompt": intro_prompt,
+            "body_prompt": body_prompt,
+            "quiz_prompt": quiz_prompt,
+            "question_prompt": question_prompt,
+        }
+        
         try:
-            llm_output = call_llm(master_prompt, payload)
-            record_id = store_interpretation(payload, master_prompt, llm_output)
+            llm_output = call_llm(prompt_parts, payload)
+            # 保存时使用组合后的提示词（用于记录）
+            combined_prompt = "\n\n".join([v for v in prompt_parts.values() if v])
+            record_id = store_interpretation(payload, combined_prompt, llm_output)
             return jsonify({"result": llm_output, "record_id": record_id})
         except RuntimeError as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    @app.post("/api/generate/part")
+    def generate_part_endpoint():
+        """单独生成某个部分的解读（用于调试）"""
+        payload = request.get_json() or {}
+        part = payload.get("part")  # intro, body, quiz, question
+        if not part:
+            return jsonify({"error": "缺少 part 字段"}), 400
+        
+        required_fields = ["chapterTitle", "userProfession", "readingGoal", "focus", "density"]
+        missing = [field for field in required_fields if not payload.get(field)]
+        if missing:
+            return jsonify({"error": f"缺少字段：{', '.join(missing)}"}), 400
+
+        # 根据部分类型选择不同的输入内容和提示词
+        if part == "intro":
+            chapter_content = payload.get("chapterSummary", payload.get("chapterTitle", ""))
+            part_prompt = payload.get("intro_prompt", "").strip()
+            if not part_prompt:
+                part_prompt = load_setting("prompt_intro", default="")
+        elif part == "body":
+            chapter_content = payload.get("chapterText", "")
+            part_prompt = payload.get("body_prompt", "").strip()
+            if not part_prompt:
+                part_prompt = load_setting("prompt_body", default="")
+        elif part == "quiz":
+            chapter_content = payload.get("chapterText", "")
+            part_prompt = payload.get("quiz_prompt", "").strip()
+            if not part_prompt:
+                part_prompt = load_setting("prompt_quiz", default="")
+        elif part == "question":
+            chapter_content = payload.get("chapterText", "")
+            part_prompt = payload.get("question_prompt", "").strip()
+            if not part_prompt:
+                part_prompt = load_setting("prompt_question", default="")
+        else:
+            return jsonify({"error": f"无效的 part 值: {part}"}), 400
+
+        if not part_prompt:
+            return jsonify({"error": f"缺少 {part} 部分的提示词，请在提示词调适界面中设置"}), 400
+
+        # 构建用户画像
+        density_map = {
+            "20% 主干": "20% 主干",
+            "50% 核心": "50% 核心",
+            "70% 深度": "70% 深度",
+        }
+        explanation_density = density_map.get(payload.get("density", "50% 核心"), "50% 核心")
+        
+        user_profile_json = json.dumps({
+            "profession": payload.get("userProfession", ""),
+            "reading_goal": payload.get("readingGoal", ""),
+            "focus_preference": payload.get("focus", ""),
+            "explanation_density": explanation_density,
+        }, ensure_ascii=False, indent=2)
+
+        # 根据部分类型构建不同的输入数据
+        if part == "intro":
+            # 导读部分：使用摘要
+            input_data_json = json.dumps({
+                "user_profile": {
+                    "profession": payload.get("userProfession", ""),
+                    "reading_goal": payload.get("readingGoal", ""),
+                    "focus_preference": payload.get("focus", ""),
+                    "explanation_density": explanation_density,
+                },
+                "chapter_summary": chapter_content,
+                "chapter_fulltext": "",  # 导读不需要全文
+            }, ensure_ascii=False, indent=2)
+        else:
+            # 其他部分：使用正文内容
+            input_data_json = json.dumps({
+                "user_profile": {
+                    "profession": payload.get("userProfession", ""),
+                    "reading_goal": payload.get("readingGoal", ""),
+                    "focus_preference": payload.get("focus", ""),
+                    "explanation_density": explanation_density,
+                },
+                "chapter_summary": payload.get("chapterSummary", ""),
+                "chapter_fulltext": chapter_content,
+            }, ensure_ascii=False, indent=2)
+
+        # 构建调用LLM的payload
+        llm_payload = {
+            "chapterTitle": payload.get("chapterTitle", ""),
+            "chapterText": chapter_content,
+            "chapterSummary": payload.get("chapterSummary", ""),
+            "userProfession": payload.get("userProfession", ""),
+            "readingGoal": payload.get("readingGoal", ""),
+            "focus": payload.get("focus", ""),
+            "density": payload.get("density", ""),
+        }
+
+        # 构建提示词部分字典（只包含当前部分）
+        prompt_parts = {
+            "intro_prompt": "" if part != "intro" else part_prompt,
+            "body_prompt": "" if part != "body" else part_prompt,
+            "quiz_prompt": "" if part != "quiz" else part_prompt,
+            "question_prompt": "" if part != "question" else part_prompt,
+        }
+
+        try:
+            llm_output = call_llm(prompt_parts, llm_payload)
+            
+            # 根据部分类型提取对应的输出
+            # 如果返回的是单个字段的JSON（如 {"personalized_intro": "..."}），直接提取
+            # 如果返回的是完整JSON对象，从中提取对应字段
+            if part == "intro":
+                result = llm_output.get("personalized_intro") or llm_output.get("result") or llm_output.get("intro") or ""
+            elif part == "body":
+                result = llm_output.get("interpretation") or llm_output.get("result") or llm_output.get("body") or ""
+            elif part == "quiz":
+                result = llm_output.get("quiz") or llm_output.get("result") or []
+            elif part == "question":
+                result = llm_output.get("powerful_questions") or llm_output.get("result") or llm_output.get("question") or ""
+            
+            # 如果result仍然是字典，可能是返回了整个对象，尝试提取第一个字段的值
+            if isinstance(result, dict):
+                if part == "quiz" and "quiz" in result:
+                    result = result["quiz"]
+                elif part == "intro" and "personalized_intro" in result:
+                    result = result["personalized_intro"]
+                elif part == "body" and "interpretation" in result:
+                    result = result["interpretation"]
+                elif part == "question" and "powerful_questions" in result:
+                    result = result["powerful_questions"]
+                elif len(result) == 1:
+                    # 如果只有一个字段，提取它的值
+                    result = list(result.values())[0]
+            
+            return jsonify({"result": result, "part": part})
+        except RuntimeError as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    def generate_volcengine_tts_signature(
+        access_key: str, secret_key: str, method: str, host: str, path: str, params: Dict[str, Any]
+    ) -> str:
+        """生成火山引擎TTS API签名（根据火山引擎文档：https://www.volcengine.com/docs/6561/1668014）"""
+        # 排除signature参数
+        params_for_sign = {k: v for k, v in params.items() if k != "signature"}
+        
+        # 按参数名排序
+        sorted_params = sorted(params_for_sign.items())
+        query_string = "&".join([f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in sorted_params])
+        
+        # 构建待签名字符串：Method + Host + Path + QueryString
+        string_to_sign = f"{method}\n{host}\n{path}\n{query_string}"
+        
+        # 使用HMAC-SHA256签名
+        signature = hmac.new(
+            secret_key.encode('utf-8'),
+            string_to_sign.encode('utf-8'),
+            hashlib.sha256
+        ).digest()
+        
+        # Base64编码
+        return base64.b64encode(signature).decode('utf-8')
+
+    async def call_volcengine_podcast_async(
+        text: str,
+        access_token: str,
+        app_id: str,
+        resource_id: str,
+        encoding: str = "mp3",
+    ) -> Dict[str, Any]:
+        """异步调用火山引擎播客 API"""
+        if not WEBSOCKETS_AVAILABLE:
+            raise RuntimeError("需要安装 websockets: pip3 install websockets")
+        
+        ENDPOINT = "wss://openspeech.bytedance.com/api/v3/sami/podcasttts"
+        APP_KEY = "aGjiRDfUWi"  # SDK 中的固定值
+        
+        headers = {
+            "X-Api-App-Id": app_id,
+            "X-Api-App-Key": APP_KEY,
+            "X-Api-Access-Key": access_token,
+            "X-Api-Resource-Id": resource_id,
+            "X-Api-Connect-Id": str(uuid.uuid4()),
+        }
+        
+        podcast_audio = bytearray()
+        audio = bytearray()
+        websocket = None
+        
+        try:
+            # 建立 WebSocket 连接
+            websocket = await websockets.connect(ENDPOINT, additional_headers=headers)
+            
+            # 构建请求参数
+            req_params = {
+                "input_id": f"podcast_{int(time.time())}",
+                "input_text": text,
+                "action": 0,  # 0: 文本播客
+                "use_head_music": False,
+                "use_tail_music": False,
+                "input_info": {
+                    "input_url": "",
+                    "return_audio_url": False,
+                    "only_nlp_text": False,
+                },
+                "speaker_info": {"random_order": False},
+                "audio_config": {
+                    "format": encoding,
+                    "sample_rate": 24000,
+                    "speech_rate": 0,
+                },
+            }
+            
+            session_id = str(uuid.uuid4())
+            
+            # Start connection
+            await start_connection(websocket)
+            await wait_for_event(websocket, MsgType.FullServerResponse, EventType.ConnectionStarted)
+            
+            # Start session
+            await start_session(websocket, json.dumps(req_params).encode(), session_id)
+            await wait_for_event(websocket, MsgType.FullServerResponse, EventType.SessionStarted)
+            
+            # Finish session
+            await finish_session(websocket, session_id)
+            
+            # 接收响应
+            audio_received = False
+            while True:
+                msg = await receive_message(websocket)
+                
+                # 音频数据块
+                if msg.type == MsgType.AudioOnlyServer and msg.event == EventType.PodcastRoundResponse:
+                    audio.extend(msg.payload)
+                    if not audio_received:
+                        audio_received = True
+                    print(f"收到音频块: {len(msg.payload)} 字节", flush=True)
+                
+                # 错误信息
+                elif msg.type == MsgType.Error:
+                    error_msg = msg.payload.decode("utf-8", errors="ignore")
+                    # 如果是超时错误但已收到音频，继续处理
+                    if "RPCTimeout" in error_msg and audio_received:
+                        if audio:
+                            podcast_audio.extend(audio)
+                            audio.clear()
+                        break
+                    else:
+                        raise RuntimeError(f"服务器错误: {error_msg}")
+                
+                elif msg.type == MsgType.FullServerResponse:
+                    # 播客 round 结束
+                    if msg.event == EventType.PodcastRoundEnd:
+                        data = json.loads(msg.payload.decode("utf-8"))
+                        if data.get("is_error"):
+                            raise RuntimeError(f"播客轮次错误: {data}")
+                        if audio:
+                            podcast_audio.extend(audio)
+                            audio.clear()
+                    
+                    # 播客结束
+                    elif msg.event == EventType.PodcastEnd:
+                        pass
+                
+                # 会话结束
+                if msg.event == EventType.SessionFinished:
+                    break
+            
+            # 如果还有未处理的音频
+            if audio:
+                podcast_audio.extend(audio)
+            
+            if not audio_received and not podcast_audio:
+                raise RuntimeError("未收到音频数据")
+            
+            # 关闭连接
+            try:
+                await finish_connection(websocket)
+                await wait_for_event(websocket, MsgType.FullServerResponse, EventType.ConnectionFinished)
+            except:
+                pass
+            
+            if podcast_audio:
+                audio_base64 = base64.b64encode(bytes(podcast_audio)).decode("utf-8")
+                return {
+                    "audio_base64": audio_base64,
+                    "format": encoding,
+                    "duration": 0,
+                }
+            else:
+                raise RuntimeError("未生成音频数据")
+        
+        finally:
+            if websocket:
+                await websocket.close()
+    
+    def call_volcengine_tts(
+        text: str,
+        voice_type: str = "BV700_streaming",
+        language: str = "zh",
+        speed_ratio: float = 1.0,
+        volume_ratio: float = 1.0,
+        pitch_ratio: float = 1.0,
+        access_key: Optional[str] = None,
+        secret_key: Optional[str] = None,
+        app_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """调用火山引擎播客 API生成音频（使用正确的播客 API）"""
+        if not access_key:
+            access_key = volcengine_tts_access_key
+        if not app_id:
+            app_id = volcengine_tts_app_id
+        
+        resource_id = volcengine_tts_resource_id
+        
+        if not access_key or not app_id:
+            raise RuntimeError("缺少火山引擎播客配置：需要 ACCESS_KEY 和 APP_ID")
+        
+        if not WEBSOCKETS_AVAILABLE:
+            raise RuntimeError("需要安装 websockets: pip3 install websockets")
+        
+        # 使用异步函数
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        return loop.run_until_complete(
+            call_volcengine_podcast_async(
+                text=text,
+                access_token=access_key,
+                app_id=app_id,
+                resource_id=resource_id,
+                encoding="mp3",
+            )
+        )
+
+    @app.post("/api/podcast/generate")
+    def generate_podcast_endpoint():
+        """生成播客音频"""
+        payload = request.get_json() or {}
+        text = payload.get("text", "").strip()
+        voice_type = payload.get("voice_type", "BV700_streaming")
+        language = payload.get("language", "zh")
+        speed_ratio = float(payload.get("speed_ratio", 1.0))
+        volume_ratio = float(payload.get("volume_ratio", 1.0))
+        pitch_ratio = float(payload.get("pitch_ratio", 1.0))
+        
+        # 支持从请求中传入配置
+        access_key = payload.get("access_key") or volcengine_tts_access_key
+        secret_key = payload.get("secret_key") or volcengine_tts_secret_key
+        app_id = payload.get("app_id") or volcengine_tts_app_id
+        
+        if not text:
+            return jsonify({"error": "缺少文本内容"}), 400
+        
+        try:
+            result = call_volcengine_tts(
+                text=text,
+                voice_type=voice_type,
+                language=language,
+                speed_ratio=speed_ratio,
+                volume_ratio=volume_ratio,
+                pitch_ratio=pitch_ratio,
+                access_key=access_key,
+                secret_key=secret_key,
+                app_id=app_id,
+            )
+            return jsonify(result)
+        except Exception as exc:
             return jsonify({"error": str(exc)}), 500
 
     @app.post("/api/translate")
@@ -3764,6 +5376,65 @@ def create_app() -> Flask:
         except SQLAlchemyError as exc:
             return jsonify({"error": f"查询失败：{exc}"}), 500
 
+    @app.get("/api/admin/books/<int:book_id>")
+    def get_book_details(book_id: int):
+        """获取书籍详情（包括章节列表）"""
+        try:
+            with engine.begin() as conn:
+                # 查询书籍信息
+                book_row = conn.execute(
+                    text(
+                        """
+                        SELECT id, filename, chapter_count, total_word_count, created_at
+                        FROM books
+                        WHERE id = :id
+                        """
+                    ),
+                    {"id": book_id},
+                ).fetchone()
+                if not book_row:
+                    return jsonify({"error": "书籍不存在"}), 404
+
+                book = {
+                    "id": book_row[0],
+                    "filename": book_row[1],
+                    "chapter_count": book_row[2],
+                    "total_word_count": book_row[3],
+                    "created_at": book_row[4],
+                }
+
+                # 查询章节列表
+                chapters_rows = conn.execute(
+                    text(
+                        """
+                        SELECT id, chapter_title, chapter_title_zh, chapter_content, chapter_content_zh,
+                               summary, word_count, created_at
+                        FROM chapter_summaries
+                        WHERE book_id = :book_id
+                        ORDER BY id ASC
+                        """
+                    ),
+                    {"book_id": book_id},
+                ).fetchall()
+
+                chapters = [
+                    {
+                        "id": row[0],
+                        "title": row[1],
+                        "title_zh": row[2] or row[1],
+                        "content": row[3],
+                        "content_zh": row[4] or row[3],
+                        "summary": row[5],
+                        "word_count": row[6],
+                        "created_at": row[7],
+                    }
+                    for row in chapters_rows
+                ]
+
+            return jsonify({"book": book, "chapters": chapters})
+        except SQLAlchemyError as exc:
+            return jsonify({"error": f"查询失败：{exc}"}), 500
+
     @app.delete("/api/admin/books/<int:book_id>")
     def delete_book(book_id: int):
         """删除指定书籍（会级联删除所有章节）"""
@@ -3978,17 +5649,6 @@ def create_app() -> Flask:
             return translated
         except Exception as exc:
             raise Exception(f"Responses翻译接口调用失败: {exc}")
-
-    def _strip_deepseek_reasoning(content: str) -> str:
-        """移除DeepSeek R1返回中的<think>推理和多余前缀，只保留最终译文"""
-        if not content:
-            return ""
-        cleaned = re.sub(r"<think>.*?</think>", "", content, flags=re.IGNORECASE | re.DOTALL)
-        # DeepSeek可能在最终回答前加上"Answer:"或"最终答案:"等提示
-        for marker in ["Answer:", "Final Answer:", "最终答案：", "最终答案:"]:
-            if marker in cleaned:
-                cleaned = cleaned.split(marker, 1)[-1]
-        return cleaned.strip()
 
     def call_deepseek_translate(
         text: str,

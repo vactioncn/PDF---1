@@ -637,8 +637,19 @@
                 clearTimeout(timeoutId);
 
                 if (!response.ok) {
-                  const payload = await response.json();
-                  throw new Error(payload.error || `翻译失败 (状态码: ${response.status})`);
+                  let errorMessage = `翻译失败 (状态码: ${response.status})`;
+                  try {
+                    const errorText = await response.text();
+                    try {
+                      const errorData = JSON.parse(errorText);
+                      errorMessage = errorData.error || errorMessage;
+                    } catch (e) {
+                      errorMessage = errorText || errorMessage;
+                    }
+                  } catch (e) {
+                    // 如果无法读取响应，使用默认错误消息
+                  }
+                  throw new Error(errorMessage);
                 }
 
                 const payload = await response.json();
@@ -807,8 +818,19 @@
           });
 
           if (!response.ok) {
-            const payload = await response.json();
-            throw new Error(payload.error || `翻译失败 (状态码: ${response.status})`);
+            let errorMessage = `翻译失败 (状态码: ${response.status})`;
+            try {
+              const errorText = await response.text();
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (e) {
+              // 如果无法读取响应，使用默认错误消息
+            }
+            throw new Error(errorMessage);
           }
 
           const payload = await response.json();

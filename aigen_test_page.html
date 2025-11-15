@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <title>个性化解读生成测试台</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
       :root {
         color-scheme: light;
@@ -14,393 +15,1500 @@
 
       body {
         margin: 0;
-        padding: 40px;
-        display: flex;
-        flex-direction: column;
-        gap: 32px;
+        padding: 24px;
+        max-width: 1600px;
+        margin: 0 auto;
       }
 
       h1 {
-        margin: 0;
-        font-size: 30px;
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 32px;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .subtitle {
+        color: #64748b;
+        font-size: 14px;
+        margin-bottom: 32px;
       }
 
       .panel {
         background: #ffffff;
-        border-radius: 14px;
-        padding: 24px;
-        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.1);
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 24px;
+        border: 1px solid #e2e8f0;
       }
 
       .panel h2 {
         margin-top: 0;
-        font-size: 22px;
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #1e293b;
       }
 
-      .stack {
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      @media (max-width: 768px) {
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .form-group {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 8px;
+      }
+
+      .form-group.full-width {
+        grid-column: 1 / -1;
       }
 
       label {
         font-weight: 600;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
         font-size: 14px;
+        color: #475569;
       }
 
-      textarea,
-      input,
-      select {
-        border: 1px solid #cbd5f5;
-        border-radius: 10px;
-        padding: 12px 14px;
-        font-size: 15px;
+      select,
+      input[type="text"],
+      textarea {
+        padding: 10px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
         font-family: inherit;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        background: #ffffff;
       }
 
-      textarea:focus,
-      input:focus,
-      select:focus {
-        border-color: #2563eb;
+      select:focus,
+      input[type="text"]:focus,
+      textarea:focus {
         outline: none;
-        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
       }
 
       textarea {
-        min-height: 200px;
+        min-height: 120px;
         resize: vertical;
       }
 
-      .actions {
+      .user-preference-group {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      @media (max-width: 768px) {
+        .user-preference-group {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .preference-card {
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #ffffff;
+      }
+
+      .preference-card:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+      }
+
+      .preference-card.selected {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .preference-label {
+        font-weight: 600;
+        font-size: 16px;
+        color: #1e293b;
+        margin-bottom: 8px;
+      }
+
+      .preference-desc {
+        font-size: 13px;
+        color: #64748b;
+        line-height: 1.8;
+      }
+
+      .preference-dimension {
+        margin-bottom: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid #f1f5f9;
+      }
+
+      .preference-dimension:nth-child(6) {
+        border-bottom: none;
+      }
+
+      .preference-summary {
+        margin-top: 12px;
+        padding: 12px;
+        background: #eff6ff;
+        border-radius: 6px;
+        border-left: 3px solid #2563eb;
+        color: #1e40af;
+        font-weight: 500;
+      }
+
+      .density-selection {
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px dashed #e2e8f0;
+      }
+
+      .density-options {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      .density-option {
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 18px;
+        background: #ffffff;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 160px;
+        text-align: left;
+      }
+
+      .density-option strong {
+        display: block;
+        font-size: 14px;
+        color: #1e293b;
+        margin-bottom: 4px;
+      }
+
+      .density-option span {
+        font-size: 12px;
+        color: #64748b;
+      }
+
+      .density-option.active {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+
+      .prompt-tab {
+        padding: 10px 20px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .prompt-tab:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+      }
+
+      .prompt-tab.active {
+        border-color: #2563eb;
+        background: #eff6ff;
+        color: #2563eb;
+      }
+
+      .prompt-tab-panel {
+        animation: fadeIn 0.2s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
       }
 
       button {
-        padding: 12px 20px;
-        border-radius: 10px;
+        padding: 12px 24px;
+        border-radius: 8px;
         border: none;
         background: #2563eb;
         color: white;
         font-size: 15px;
+        font-weight: 500;
         cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      button.secondary {
-        background: #0f172a;
+        transition: all 0.2s ease;
+        white-space: nowrap;
       }
 
       button:disabled {
-        background: #94a3b8;
+        background: #cbd5e1;
+        color: #94a3b8;
         cursor: not-allowed;
+        transform: none;
       }
 
       button:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
       }
 
       .status {
-        margin-top: 12px;
-        font-size: 15px;
-      }
-
-      .output-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 18px;
-      }
-
-      .output-card {
-        border: 1px solid rgba(148, 163, 184, 0.4);
-        border-radius: 12px;
-        padding: 18px;
+        margin-top: 16px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
         background: #f1f5f9;
+        border-left: 4px solid #cbd5e1;
       }
 
-      .output-card h3 {
-        margin-top: 0;
-        font-size: 18px;
+      .status.info {
+        background: #eff6ff;
+        border-left-color: #3b82f6;
+        color: #1e40af;
+      }
+
+      .status.success {
+        background: #f0fdf4;
+        border-left-color: #10b981;
+        color: #065f46;
+      }
+
+      .status.error {
+        background: #fef2f2;
+        border-left-color: #ef4444;
+        color: #991b1b;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .output-panel {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e2e8f0;
+        margin-top: 24px;
+      }
+
+      .markdown-output {
+        padding: 24px;
+        background: #f8fafc;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        line-height: 1.8;
+        color: #1e293b;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      .markdown-output h1,
+      .markdown-output h2,
+      .markdown-output h3 {
+        color: #1e293b;
+        margin-top: 24px;
         margin-bottom: 12px;
       }
 
-      .output-card p,
-      .output-card li {
-        line-height: 1.7;
+      .markdown-output h1 {
+        font-size: 24px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 8px;
       }
 
-      pre {
-        white-space: pre-wrap;
-        word-break: break-word;
-        font-family: inherit;
-        margin: 0;
+      .markdown-output h2 {
+        font-size: 20px;
       }
 
-      @media (max-width: 768px) {
-        body {
-          padding: 20px;
-        }
+      .markdown-output h3 {
+        font-size: 18px;
+      }
+
+      .markdown-output p {
+        margin-bottom: 12px;
+      }
+
+      .markdown-output ul,
+      .markdown-output ol {
+        margin-bottom: 12px;
+        padding-left: 24px;
+      }
+
+      .markdown-output li {
+        margin-bottom: 6px;
+      }
+
+      .markdown-output code {
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: "Monaco", "Menlo", monospace;
+      }
+
+      .markdown-output pre {
+        background: #1e293b;
+        color: #f1f5f9;
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin-bottom: 12px;
+      }
+
+      .markdown-output pre code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+      }
+
+      .markdown-output blockquote {
+        border-left: 4px solid #2563eb;
+        padding-left: 16px;
+        margin-left: 0;
+        color: #475569;
+        font-style: italic;
       }
     </style>
   </head>
   <body>
-    <h1>个性化解读生成测试台</h1>
+    <h1>📖 个性化解读生成测试台</h1>
+    <p class="subtitle">选择书籍和章节，配置解读提示词和用户偏好，生成个性化解读内容</p>
 
     <section class="panel">
-      <h2>A. 核心提示词管理区</h2>
-      <div class="stack">
-        <label>
-          Master Prompt
-          <textarea id="masterPrompt" placeholder="输入核心提示词..."></textarea>
-        </label>
-        <div class="actions">
-          <button id="savePrompt">保存核心提示词</button>
+      <h2>📚 选择书籍和章节</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="bookSelect">选择书籍</label>
+          <select id="bookSelect">
+            <option value="">请选择书籍...</option>
+          </select>
         </div>
-        <div class="status" id="promptStatus"></div>
+        <div class="form-group">
+          <label for="chapterSelect">选择章节</label>
+          <select id="chapterSelect" disabled>
+            <option value="">请先选择书籍</option>
+          </select>
+        </div>
       </div>
     </section>
 
     <section class="panel">
-      <h2>B. 手动输入区</h2>
-      <div class="stack">
-        <label>
-          章节标题
-          <input id="chapterTitle" type="text" />
+      <h2>✏️ 解读提示词调适</h2>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">分别优化各个部分的提示词，以获得更好的解读效果</p>
+      
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+        <button class="prompt-tab" data-tab="intro" onclick="switchPromptTab('intro')">📖 导读部分</button>
+        <button class="prompt-tab" data-tab="body" onclick="switchPromptTab('body')">📝 正文部分</button>
+        <button class="prompt-tab" data-tab="quiz" onclick="switchPromptTab('quiz')">❓ 互动问答</button>
+        <button class="prompt-tab" data-tab="question" onclick="switchPromptTab('question')">💡 一句话问题</button>
+      </div>
+      
+      <div id="promptTabContent">
+        <div class="prompt-tab-panel" id="promptTabIntro" style="display: block;">
+          <div class="form-group full-width">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="introPrompt" style="margin: 0;">导读部分提示词（基于章节摘要生成）</label>
+              <button class="secondary" onclick="generateSinglePart('intro')" id="generateIntroBtn" style="padding: 8px 16px; font-size: 14px;">🚀 单独生成导读</button>
+            </div>
+            <textarea id="introPrompt" rows="12" placeholder="输入导读部分的提示词..."></textarea>
+            <div id="introResult" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+          </div>
+        </div>
+        <div class="prompt-tab-panel" id="promptTabBody" style="display: none;">
+          <div class="form-group full-width">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="bodyPrompt" style="margin: 0;">正文部分提示词（基于章节正文内容生成）</label>
+              <button class="secondary" onclick="generateSinglePart('body')" id="generateBodyBtn" style="padding: 8px 16px; font-size: 14px;">🚀 单独生成正文</button>
+            </div>
+            <textarea id="bodyPrompt" rows="20" placeholder="输入正文部分的提示词..."></textarea>
+            <div id="bodyResult" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+          </div>
+        </div>
+        <div class="prompt-tab-panel" id="promptTabQuiz" style="display: none;">
+          <div class="form-group full-width">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="quizPrompt" style="margin: 0;">互动问答提示词</label>
+              <button class="secondary" onclick="generateSinglePart('quiz')" id="generateQuizBtn" style="padding: 8px 16px; font-size: 14px;">🚀 单独生成问答</button>
+            </div>
+            <textarea id="quizPrompt" rows="12" placeholder="输入互动问答部分的提示词..."></textarea>
+            <div id="quizResult" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+          </div>
+        </div>
+        <div class="prompt-tab-panel" id="promptTabQuestion" style="display: none;">
+          <div class="form-group full-width">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="questionPrompt" style="margin: 0;">一句话问题提示词</label>
+              <button class="secondary" onclick="generateSinglePart('question')" id="generateQuestionBtn" style="padding: 8px 16px; font-size: 14px;">🚀 单独生成问题</button>
+            </div>
+            <textarea id="questionPrompt" rows="12" placeholder="输入一句话问题部分的提示词..."></textarea>
+            <div id="questionResult" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 12px; margin-top: 16px;">
+        <button class="secondary" onclick="loadPromptParts()">📥 加载已保存</button>
+        <button class="secondary" onclick="savePromptParts()">💾 保存提示词</button>
+      </div>
+      <div class="status" id="promptStatus" style="display: none;"></div>
+    </section>
+
+    <section class="panel">
+      <h2>👤 用户偏好设置</h2>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">先选择阅读角色，再选择解读密度，以模拟不同读者的需求</p>
+      <div class="user-preference-group">
+        <div class="preference-card" data-preference="A" onclick="selectPreference('A')">
+          <div class="preference-label">A. 创业公司 CEO</div>
+          <div class="preference-desc" id="preferenceDescA">
+            <div class="preference-dimension"><strong>1. 年龄 & 职业：</strong>38岁，创业公司CEO</div>
+            <div class="preference-dimension"><strong>2. 阅读目的：</strong>提升战略决策能力、团队管理和商业洞察力，寻找增长杠杆</div>
+            <div class="preference-dimension"><strong>3. 阅读时长 & 节奏：</strong>单次30-45分钟，碎片化阅读，常在通勤、午休时阅读</div>
+            <div class="preference-dimension"><strong>4. 生活角色身份：</strong>创业者、团队管理者、父亲</div>
+            <div class="preference-dimension"><strong>5. 最近想提升的方向：</strong>决策速度与质量、团队激励与赋能、商业模式创新</div>
+            <div class="preference-dimension"><strong>6. 称呼偏好：</strong>李总</div>
+            <div class="preference-summary"><strong>用户特征：</strong>一个需要在有限时间内快速抓住商业杠杆点、用于实战决策的创业掌舵人</div>
+          </div>
+        </div>
+        <div class="preference-card" data-preference="B" onclick="selectPreference('B')">
+          <div class="preference-label">B. 产品经理</div>
+          <div class="preference-desc" id="preferenceDescB">
+            <div class="preference-dimension"><strong>1. 年龄 & 职业：</strong>30岁，产品经理</div>
+            <div class="preference-dimension"><strong>2. 阅读目的：</strong>深入理解用户心理、产品设计原理和商业逻辑，提升产品思维</div>
+            <div class="preference-dimension"><strong>3. 阅读时长 & 节奏：</strong>单次1-1.5小时，偏好深度阅读，通常在晚上或周末</div>
+            <div class="preference-dimension"><strong>4. 生活角色身份：</strong>职场专业人士、产品负责人</div>
+            <div class="preference-dimension"><strong>5. 最近想提升的方向：</strong>用户洞察能力、产品设计思维、数据分析能力</div>
+            <div class="preference-dimension"><strong>6. 称呼偏好：</strong>小王</div>
+            <div class="preference-summary"><strong>用户特征：</strong>一个追求深度理解用户心理和产品逻辑，需要通过系统性思维提升产品决策能力的产品经理</div>
+          </div>
+        </div>
+        <div class="preference-card" data-preference="C" onclick="selectPreference('C')">
+          <div class="preference-label">C. 知识工作者</div>
+          <div class="preference-desc" id="preferenceDescC">
+            <div class="preference-dimension"><strong>1. 年龄 & 职业：</strong>33岁，知识工作者（咨询顾问/培训师/研究员）</div>
+            <div class="preference-dimension"><strong>2. 阅读目的：</strong>系统化构建知识体系，探索跨领域思维，提升专业深度和广度</div>
+            <div class="preference-dimension"><strong>3. 阅读时长 & 节奏：</strong>单次2-3小时，沉浸式深度阅读，主要在周末或假期</div>
+            <div class="preference-dimension"><strong>4. 生活角色身份：</strong>独立专业人士、知识传播者、思考者</div>
+            <div class="preference-dimension"><strong>5. 最近想提升的方向：</strong>跨学科思维能力、知识整合、认知深度</div>
+            <div class="preference-dimension"><strong>6. 称呼偏好：</strong>老师</div>
+            <div class="preference-summary"><strong>用户特征：</strong>一个系统化构建知识体系、追求深度理解和跨领域思考的知识工作者</div>
+          </div>
+        </div>
+        <div class="preference-card" data-preference="D" onclick="selectPreference('D')">
+          <div class="preference-label">D. 忙碌的职场人士</div>
+          <div class="preference-desc" id="preferenceDescD">
+            <div class="preference-dimension"><strong>1. 年龄 & 职业：</strong>28岁，公司中层管理者或高级执行者</div>
+            <div class="preference-dimension"><strong>2. 阅读目的：</strong>快速获取核心观点和关键洞察，提高工作效率和决策能力</div>
+            <div class="preference-dimension"><strong>3. 阅读时长 & 节奏：</strong>单次15-30分钟，碎片化阅读，主要在通勤或短暂休息时间</div>
+            <div class="preference-dimension"><strong>4. 生活角色身份：</strong>职场奋斗者、可能也是父母、家庭责任承担者</div>
+            <div class="preference-dimension"><strong>5. 最近想提升的方向：</strong>时间管理、决策效率、快速学习能力</div>
+            <div class="preference-dimension"><strong>6. 称呼偏好：</strong>小陈</div>
+            <div class="preference-summary"><strong>用户特征：</strong>一个时间有限、追求快速获取可落地核心观点并立即应用的职场实干派</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="density-selection">
+        <label style="font-weight: 600; color: #475569;">解读密度</label>
+        <div class="density-options">
+          <button type="button" class="density-option" data-density="20% 主干" onclick="selectDensity('20% 主干')">
+            <strong>20% 主干</strong>
+            <span>只保留主线结论 + 核心推理，约 3-4 个要点</span>
+          </button>
+          <button type="button" class="density-option" data-density="50% 核心" onclick="selectDensity('50% 核心')">
+            <strong>50% 核心</strong>
+            <span>在主干上补充关键例证和细节，约 5-7 个要点</span>
+          </button>
+          <button type="button" class="density-option" data-density="70% 深度" onclick="selectDensity('70% 深度')">
+            <strong>70% 深度</strong>
+            <span>覆盖重要分支与盲点提醒，约 8-12 个要点</span>
+          </button>
+        </div>
+      </div>
+
+      <input type="hidden" id="selectedPreference" value="" />
+    </section>
+
+    <section class="panel">
+      <h2>🎙️ 播客配置</h2>
+      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="enablePodcast" checked /> 生成播客音频
         </label>
-        <label>
-          章节原文
-          <textarea id="chapterText"></textarea>
-        </label>
-        <div class="stack" style="flex-direction: row; flex-wrap: wrap; gap: 16px">
-          <label style="flex: 1 1 180px">
-            用户职业
-            <input id="userProfession" type="text" />
-          </label>
-          <label style="flex: 1 1 180px">
-            阅读目的
-            <input id="readingGoal" type="text" />
-          </label>
+        <div id="podcastConfig" style="display: flex; align-items: center; gap: 8px;">
+          <label for="voiceType" style="margin: 0; white-space: nowrap;">音色：</label>
+          <select id="voiceType" style="min-width: 120px;">
+            <option value="BV700_streaming">标准女声</option>
+            <option value="BV701_streaming">温柔女声</option>
+            <option value="BV702_streaming">知性女声</option>
+            <option value="BV703_streaming">活泼女声</option>
+            <option value="BV001_streaming">标准男声</option>
+            <option value="BV002_streaming">磁性男声</option>
+            <option value="BV003_streaming">沉稳男声</option>
+          </select>
         </div>
-        <div class="stack" style="flex-direction: row; flex-wrap: wrap; gap: 16px">
-          <label style="flex: 1 1 180px">
-            关注重点
-            <input id="focus" type="text" />
-          </label>
-          <label style="flex: 1 1 180px">
-            解读密度
-            <select id="density">
-              <option value="10% 精华">10% 精华</option>
-              <option value="30% 核心">30% 核心</option>
-              <option value="50% 要义">50% 要义</option>
-            </select>
-          </label>
-        </div>
-        <div class="actions">
-          <button id="generateButton" class="secondary">开始生成个性化解读</button>
-        </div>
-        <div class="status" id="generationStatus"></div>
       </div>
     </section>
 
     <section class="panel">
-      <h2>C. 成品输出区</h2>
-      <div id="outputArea" class="output-grid">
-        <div class="output-card">
-          <h3>结果待生成</h3>
-          <p>点击“开始生成个性化解读”后，将在此显示完整内容。</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <h2 style="margin: 0;">🚀 生成解读</h2>
+        <button id="generateButton" disabled>生成解读</button>
+      </div>
+      <div class="status" id="generationStatus" style="display: none;"></div>
+    </section>
+
+    <!-- 调试信息和思考过程区域 - 始终显示 -->
+    <section class="panel" style="margin-top: 24px;">
+      <!-- 调试信息区域 -->
+      <div id="debugInfoSection" style="display: block; margin-bottom: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h3 style="margin-top: 0; color: #475569; font-size: 16px; margin-bottom: 12px;">🔧 调试信息</h3>
+        <div id="debugInfoContent" style="font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; color: #64748b; line-height: 1.6;">
+          <div style="color: #94a3b8; font-style: italic;">等待生成结果...</div>
+        </div>
+      </div>
+      
+      <!-- 深度思考过程区域 -->
+      <div id="thinkingProcessSection" style="display: block; margin-bottom: 24px; padding: 20px; background: #f0f9ff; border-radius: 12px; border-left: 4px solid #3b82f6;">
+        <h3 style="margin-top: 0; color: #1e40af; font-size: 18px; margin-bottom: 12px;">🧠 深度思考过程</h3>
+        <div id="thinkingProcessContent" style="color: #1e293b; line-height: 1.8; white-space: pre-wrap; max-height: 400px; overflow-y: auto; padding: 12px; background: #ffffff; border-radius: 8px; border: 1px solid #bfdbfe;">
+          <div style="color: #94a3b8; font-style: italic;">等待生成结果...</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="output-panel" id="outputSection" style="display: none;">
+      <h2>📄 解读结果</h2>
+      <div class="markdown-output" id="markdownOutput"></div>
+      <div id="podcastSection" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 2px solid #e2e8f0;">
+        <h3 style="margin-top: 0;">🎙️ 播客音频</h3>
+        <div id="podcastButtonContainer" style="margin-bottom: 16px;">
+          <button id="generatePodcastButton" class="secondary" onclick="generatePodcastFromResult()">🎙️ 生成播客</button>
+        </div>
+        <div id="podcastAudioContainer" style="display: none;">
+          <audio id="podcastAudio" controls style="width: 100%; margin-bottom: 12px;"></audio>
+          <div style="display: flex; gap: 12px;">
+            <button id="downloadPodcast" class="secondary">下载音频</button>
+            <span id="podcastStatus" style="color: #64748b; font-size: 14px;"></span>
+          </div>
         </div>
       </div>
     </section>
 
     <script>
-      const defaults = {
-        chapterTitle: "第一章：认识自己",
-        chapterText: `人，认识你自己。这是一个古老的哲学命题，也是每一位 CEO 在复杂商业环境中必须不断追问的问题。现代企业领导者所面对的，是动态变化的市场、瞬息万变的竞争格局以及复杂的 stakeholder 网络。如果不能精准定位自我，就无法有效调动资源，更无从谈起领导别人。认识自己，首先要清晰掌握你的价值观、决策风格与压力反应模式。只有真正理解这些内在驱动力，你才能在企业战略转型、人才布局和危机管理中保持稳定与清晰。其次，领导者必须建立可回顾的经验档案，系统梳理每一次成功与失误背后的因果逻辑。通过这样的“复盘机制”，你会逐渐形成专属的领导知识库，为未来的重大选择提供可参考的模型。最后，认识自己并不是孤立的 introspection，而是通过与团队、董事会乃至市场的互动，持续修正自我认知。建立一个可信的反馈系统，才能确保你的自我判断不会偏离现实，真正做到既忠于内心，又不脱离时代。`,
-        userProfession: "CEO",
-        readingGoal: "提升管理技能",
-        focus: "可落地的应用案例",
-        density: "30% 核心",
-      };
-
-      const masterPrompt = document.getElementById("masterPrompt");
+      const bookSelect = document.getElementById("bookSelect");
+      const chapterSelect = document.getElementById("chapterSelect");
       const promptStatus = document.getElementById("promptStatus");
-      const savePrompt = document.getElementById("savePrompt");
-
-      const chapterTitle = document.getElementById("chapterTitle");
-      const chapterText = document.getElementById("chapterText");
-      const userProfession = document.getElementById("userProfession");
-      const readingGoal = document.getElementById("readingGoal");
-      const focus = document.getElementById("focus");
-      const density = document.getElementById("density");
+      const selectedPreference = document.getElementById("selectedPreference");
       const generateButton = document.getElementById("generateButton");
       const generationStatus = document.getElementById("generationStatus");
-      const outputArea = document.getElementById("outputArea");
+      const outputSection = document.getElementById("outputSection");
+      const markdownOutput = document.getElementById("markdownOutput");
+      
+      // 提示词相关元素
+      const introPrompt = document.getElementById("introPrompt");
+      const bodyPrompt = document.getElementById("bodyPrompt");
+      const quizPrompt = document.getElementById("quizPrompt");
+      const questionPrompt = document.getElementById("questionPrompt");
+      
+      // 播客相关元素
+      const enablePodcast = document.getElementById("enablePodcast");
+      const podcastConfig = document.getElementById("podcastConfig");
+      const voiceType = document.getElementById("voiceType");
+      const podcastSection = document.getElementById("podcastSection");
+      const podcastAudio = document.getElementById("podcastAudio");
+      const downloadPodcast = document.getElementById("downloadPodcast");
+      const podcastStatus = document.getElementById("podcastStatus");
+      
+      let currentAudioBlob = null;
+
+      let books = [];
+      let chapters = [];
+      let selectedBook = null;
+      let selectedChapter = null;
+      let currentInterpretationResult = null; // 存储当前的解读结果
+
+      // 用户偏好配置 - 基于6个维度完整刻画用户画像
+      const preferenceConfigs = {
+        A: {
+          // 1. 年龄 & 职业
+          age: "38岁",
+          profession: "创业公司CEO",
+          // 2. 阅读目的
+          readingGoal: "提升战略决策能力、团队管理和商业洞察力，寻找增长杠杆",
+          // 3. 阅读时长 & 休息节奏
+          readingDuration: "单次30-45分钟",
+          readingRhythm: "碎片化阅读，常在通勤、午休时阅读",
+          // 4. 生活角色身份
+          lifeRole: "创业者、团队管理者、父亲",
+          // 5. 最近想提升的方向
+          currentFocus: "决策速度与质量、团队激励与赋能、商业模式创新",
+          // 6. 称呼偏好
+          preferredTitle: "李总",
+          // 一句话描述用户特征和偏好
+          summary: "一个需要在有限时间内快速抓住商业杠杆点、用于实战决策的创业掌舵人",
+          // 用于生成解读的字段（向后兼容）
+          userProfession: "创业公司CEO",
+          focus: "商业洞察、组织杠杆和落地抓手",
+        },
+        B: {
+          age: "30岁",
+          profession: "产品经理",
+          readingGoal: "深入理解用户心理、产品设计原理和商业逻辑，提升产品思维",
+          readingDuration: "单次1-1.5小时",
+          readingRhythm: "偏好深度阅读，通常在晚上或周末",
+          lifeRole: "职场专业人士、产品负责人",
+          currentFocus: "用户洞察能力、产品设计思维、数据分析能力",
+          preferredTitle: "小王",
+          summary: "一个追求深度理解用户心理和产品逻辑，需要通过系统性思维提升产品决策能力的产品经理",
+          userProfession: "产品经理",
+          focus: "模型推理、框架拆解和对比案例",
+        },
+        C: {
+          age: "33岁",
+          profession: "知识工作者（咨询顾问/培训师/研究员）",
+          readingGoal: "系统化构建知识体系，探索跨领域思维，提升专业深度和广度",
+          readingDuration: "单次2-3小时",
+          readingRhythm: "沉浸式深度阅读，主要在周末或假期",
+          lifeRole: "独立专业人士、知识传播者、思考者",
+          currentFocus: "跨学科思维能力、知识整合、认知深度",
+          preferredTitle: "老师",
+          summary: "一个系统化构建知识体系、追求深度理解和跨领域思考的知识工作者",
+          userProfession: "知识工作者",
+          focus: "概念映射、结构化总结与延展思考",
+        },
+        D: {
+          age: "28岁",
+          profession: "公司中层管理者或高级执行者",
+          readingGoal: "快速获取核心观点和关键洞察，提高工作效率和决策能力",
+          readingDuration: "单次15-30分钟",
+          readingRhythm: "碎片化阅读，主要在通勤或短暂休息时间",
+          lifeRole: "职场奋斗者、可能也是父母、家庭责任承担者",
+          currentFocus: "时间管理、决策效率、快速学习能力",
+          preferredTitle: "小陈",
+          summary: "一个时间有限、追求快速获取可落地核心观点并立即应用的职场实干派",
+          userProfession: "忙碌的职场人士",
+          focus: "浓缩结论、行动清单和实践捷径",
+        },
+      };
+
+      let selectedDensity = "50% 核心";
 
       function renderStatus(el, message, type = "info") {
-        const palette = {
-          info: "#1e293b",
-          success: "#047857",
-          error: "#b91c1c",
-        };
-        el.style.color = palette[type] ?? palette.info;
+        el.style.display = "block";
+        el.className = `status ${type}`;
         el.textContent = message;
       }
 
-      function fillDefaults() {
-        chapterTitle.value = defaults.chapterTitle;
-        chapterText.value = defaults.chapterText;
-        userProfession.value = defaults.userProfession;
-        readingGoal.value = defaults.readingGoal;
-        focus.value = defaults.focus;
-        density.value = defaults.density;
+      function hideStatus(el) {
+        el.style.display = "none";
       }
 
-      function renderOutput(data) {
-        if (!data) {
-          outputArea.innerHTML = `
-            <div class="output-card">
-              <h3>结果待生成</h3>
-              <p>点击“开始生成个性化解读”后，将在此显示完整内容。</p>
-            </div>`;
+      // 切换提示词标签页
+      function switchPromptTab(tabName) {
+        // 隐藏所有面板
+        document.querySelectorAll(".prompt-tab-panel").forEach(panel => {
+          panel.style.display = "none";
+        });
+        // 移除所有标签的active类
+        document.querySelectorAll(".prompt-tab").forEach(tab => {
+          tab.classList.remove("active");
+        });
+        // 显示选中的面板
+        const panel = document.getElementById(`promptTab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+        if (panel) {
+          panel.style.display = "block";
+        }
+        // 激活选中的标签
+        const tab = document.querySelector(`[data-tab="${tabName}"]`);
+        if (tab) {
+          tab.classList.add("active");
+        }
+      }
+
+      // 加载提示词各部分
+      async function loadPromptParts() {
+        try {
+          const response = await fetch("/api/settings/prompt_parts");
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          if (data.intro_prompt) introPrompt.value = data.intro_prompt;
+          if (data.body_prompt) bodyPrompt.value = data.body_prompt;
+          if (data.quiz_prompt) quizPrompt.value = data.quiz_prompt;
+          if (data.question_prompt) questionPrompt.value = data.question_prompt;
+          renderStatus(promptStatus, "提示词已加载", "success");
+        } catch (error) {
+          console.error(error);
+          renderStatus(promptStatus, `加载失败: ${error.message}`, "error");
+        }
+      }
+
+      // 保存提示词各部分
+      async function savePromptParts() {
+        try {
+          const payload = {
+            intro_prompt: introPrompt.value.trim(),
+            body_prompt: bodyPrompt.value.trim(),
+            quiz_prompt: quizPrompt.value.trim(),
+            question_prompt: questionPrompt.value.trim(),
+          };
+          const response = await fetch("/api/settings/prompt_parts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          renderStatus(promptStatus, "提示词已保存", "success");
+        } catch (error) {
+          console.error(error);
+          renderStatus(promptStatus, `保存失败: ${error.message}`, "error");
+        }
+      }
+
+      // 单独生成某个部分
+      async function generateSinglePart(part) {
+        if (!selectedBook || !selectedChapter || !selectedPreference.value) {
+          renderStatus(promptStatus, "请先选择书籍、章节和用户偏好", "error");
           return;
         }
 
-        const {
-          personalized_intro,
-          interpretation,
-          summary_and_application,
-          powerful_questions,
-          quiz,
-        } = data;
-
-        outputArea.innerHTML = `
-          <div class="output-card">
-            <h3>1. 个性化导读</h3>
-            <p>${personalized_intro ?? "暂无内容"}</p>
-          </div>
-          <div class="output-card">
-            <h3>2. 正式解读内容</h3>
-            <p>${interpretation ?? "暂无内容"}</p>
-          </div>
-          <div class="output-card">
-            <h3>3. 章节总结与应用</h3>
-            <p>${summary_and_application ?? "暂无内容"}</p>
-          </div>
-          <div class="output-card">
-            <h3>4. 强有力的提问</h3>
-            <ul>
-              ${(powerful_questions ?? [])
-                .map((question) => `<li>${question}</li>`)
-                .join("") || "<li>暂无内容</li>"}
-            </ul>
-          </div>
-          <div class="output-card">
-            <h3>5. 章节考试</h3>
-            <div>
-              ${(quiz ?? [])
-                .map(
-                  (item, index) => `
-                    <div style="margin-bottom: 16px">
-                      <strong>${index + 1}. ${item.question ?? ""}</strong>
-                      <ol style="margin: 8px 0 0 18px; padding: 0;">
-                        ${(item.options ?? [])
-                          .map((option, idx) => `<li>(${String.fromCharCode(65 + idx)}) ${option}</li>`)
-                          .join("")}
-                      </ol>
-                      <p style="margin: 8px 0 0 0; font-size: 14px;">答案：${item.answer ?? "?"}</p>
-                      <p style="margin: 4px 0 0 0; font-size: 14px; color: #334155;">解析：${item.explanation ?? ""}</p>
-                    </div>
-                  `
-                )
-                .join("") || "<p>暂无考题</p>"}
-            </div>
-          </div>
-        `;
-      }
-
-      savePrompt.addEventListener("click", async () => {
-        renderStatus(promptStatus, "正在保存...", "info");
-        savePrompt.disabled = true;
-        try {
-          const response = await fetch("/api/settings/master_prompt", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ value: masterPrompt.value }),
-          });
-          const payload = await response.json();
-          if (!response.ok) {
-            throw new Error(payload.error || "保存失败");
-          }
-          renderStatus(promptStatus, "核心提示词已保存。", "success");
-        } catch (error) {
-          console.error(error);
-          renderStatus(promptStatus, error.message, "error");
-        } finally {
-          savePrompt.disabled = false;
+        const prefConfig = preferenceConfigs[selectedPreference.value];
+        if (!prefConfig) {
+          renderStatus(promptStatus, "用户偏好配置错误", "error");
+          return;
         }
-      });
 
-      generateButton.addEventListener("click", async () => {
+        // 获取对应部分的提示词
+        let partPrompt = "";
+        let resultElement = null;
+        let buttonElement = null;
+        
+        if (part === "intro") {
+          partPrompt = introPrompt.value.trim();
+          resultElement = document.getElementById("introResult");
+          buttonElement = document.getElementById("generateIntroBtn");
+        } else if (part === "body") {
+          partPrompt = bodyPrompt.value.trim();
+          resultElement = document.getElementById("bodyResult");
+          buttonElement = document.getElementById("generateBodyBtn");
+        } else if (part === "quiz") {
+          partPrompt = quizPrompt.value.trim();
+          resultElement = document.getElementById("quizResult");
+          buttonElement = document.getElementById("generateQuizBtn");
+        } else if (part === "question") {
+          partPrompt = questionPrompt.value.trim();
+          resultElement = document.getElementById("questionResult");
+          buttonElement = document.getElementById("generateQuestionBtn");
+        }
+
+        if (!partPrompt) {
+          renderStatus(promptStatus, `请先输入${part}部分的提示词`, "error");
+          return;
+        }
+
+        // 禁用按钮
+        if (buttonElement) {
+          buttonElement.disabled = true;
+          buttonElement.textContent = "生成中...";
+        }
+
+        // 显示结果区域
+        if (resultElement) {
+          resultElement.style.display = "block";
+          resultElement.innerHTML = "<p style='color: #64748b;'>正在生成...</p>";
+        }
+
         const payload = {
-          chapterTitle: chapterTitle.value.trim(),
-          chapterText: chapterText.value.trim(),
-          userProfession: userProfession.value.trim(),
-          readingGoal: readingGoal.value.trim(),
-          focus: focus.value.trim(),
-          density: density.value,
+          part: part,
+          chapterTitle: selectedChapter.title_zh || selectedChapter.title,
+          chapterText: selectedChapter.content_zh || selectedChapter.content,
+          chapterSummary: selectedChapter.summary || selectedChapter.title_zh || selectedChapter.title,
+          // 向后兼容字段
+          userProfession: prefConfig.userProfession,
+          readingGoal: prefConfig.readingGoal,
+          focus: prefConfig.focus,
+          density: selectedDensity,
+          // 新的6个维度字段
+          userAge: prefConfig.age,
+          userProfessionDetail: prefConfig.profession,
+          userReadingGoal: prefConfig.readingGoal,
+          userReadingDuration: prefConfig.readingDuration,
+          userReadingRhythm: prefConfig.readingRhythm,
+          userLifeRole: prefConfig.lifeRole,
+          userCurrentFocus: prefConfig.currentFocus,
+          userPreferredTitle: prefConfig.preferredTitle,
+          userSummary: prefConfig.summary,
+          intro_prompt: introPrompt.value.trim(),
+          body_prompt: bodyPrompt.value.trim(),
+          quiz_prompt: quizPrompt.value.trim(),
+          question_prompt: questionPrompt.value.trim(),
         };
 
-        renderStatus(generationStatus, "正在调用 AI，请稍候...", "info");
+        try {
+          const response = await fetch("/api/generate/part", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(300000), // 5分钟超时
+          });
+
+          if (!response.ok) {
+            let errorMessage = "生成失败";
+            try {
+              const errorText = await response.text();
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (e) {
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+
+          const data = await response.json();
+          
+          // 显示结果
+          if (resultElement) {
+            let resultHtml = "";
+            if (part === "quiz" && Array.isArray(data.result)) {
+              // 问答部分：显示为列表
+              resultHtml = "<h4 style='margin-top: 0; color: #1e293b;'>生成的问答：</h4>";
+              data.result.forEach((item, index) => {
+                resultHtml += `<div style="margin-bottom: 16px; padding: 12px; background: #ffffff; border-radius: 6px; border-left: 3px solid #2563eb;">`;
+                resultHtml += `<p><strong>题目 ${index + 1}：</strong> ${item.question || ""}</p>`;
+                if (item.options && Array.isArray(item.options)) {
+                  resultHtml += `<ul style="margin: 8px 0; padding-left: 20px;">`;
+                  item.options.forEach((opt, idx) => {
+                    resultHtml += `<li>${String.fromCharCode(65 + idx)}. ${opt}</li>`;
+                  });
+                  resultHtml += `</ul>`;
+                }
+                resultHtml += `<p><strong>答案：</strong> ${item.answer || "?"}</p>`;
+                if (item.explanation) {
+                  resultHtml += `<p><strong>解析：</strong> ${item.explanation}</p>`;
+                }
+                resultHtml += `</div>`;
+              });
+            } else {
+              // 其他部分：直接显示文本
+              resultHtml = `<h4 style='margin-top: 0; color: #1e293b;'>生成结果：</h4>`;
+              resultHtml += `<div style="white-space: pre-wrap; line-height: 1.6; color: #1e293b;">${data.result || "无结果"}</div>`;
+            }
+            resultElement.innerHTML = resultHtml;
+          }
+
+          renderStatus(promptStatus, `${part}部分生成完成！`, "success");
+        } catch (error) {
+          console.error("生成失败:", error);
+          let errorMessage = "生成失败";
+          if (error.name === "AbortError" || error.name === "TimeoutError") {
+            errorMessage = "请求超时，请稍后重试";
+          } else if (error.message) {
+            errorMessage = error.message;
+          } else if (error instanceof TypeError && error.message.includes("fetch")) {
+            errorMessage = "网络请求失败，请检查服务器是否运行";
+          }
+          
+          if (resultElement) {
+            resultElement.innerHTML = `<p style='color: #ef4444;'>${errorMessage}</p>`;
+          }
+          renderStatus(promptStatus, errorMessage, "error");
+        } finally {
+          // 恢复按钮
+          if (buttonElement) {
+            buttonElement.disabled = false;
+            if (part === "intro") {
+              buttonElement.textContent = "🚀 单独生成导读";
+            } else if (part === "body") {
+              buttonElement.textContent = "🚀 单独生成正文";
+            } else if (part === "quiz") {
+              buttonElement.textContent = "🚀 单独生成问答";
+            } else if (part === "question") {
+              buttonElement.textContent = "🚀 单独生成问题";
+            }
+          }
+        }
+      }
+
+      // 加载书籍列表
+      async function loadBooks() {
+        try {
+          const response = await fetch("/api/admin/books?page=1&per_page=100");
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          books = data.books || [];
+          bookSelect.innerHTML = '<option value="">请选择书籍...</option>';
+          books.forEach((book) => {
+            const option = document.createElement("option");
+            option.value = book.id;
+            option.textContent = `${book.filename} (${book.chapter_count}章)`;
+            bookSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error(error);
+          renderStatus(promptStatus, `加载书籍失败: ${error.message}`, "error");
+        }
+      }
+
+      // 加载章节列表
+      async function loadChapters(bookId) {
+        chapterSelect.disabled = true;
+        chapterSelect.innerHTML = '<option value="">加载中...</option>';
+
+        try {
+          const response = await fetch(`/api/admin/books/${bookId}`);
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          selectedBook = data.book;
+          chapters = data.chapters || [];
+
+          chapterSelect.innerHTML = '<option value="">请选择章节...</option>';
+          chapters.forEach((chapter, index) => {
+            const option = document.createElement("option");
+            option.value = chapter.id;
+            const displayTitle = chapter.title_zh || chapter.title;
+            option.textContent = `${index + 1}. ${displayTitle}`;
+            chapterSelect.appendChild(option);
+          });
+
+          chapterSelect.disabled = false;
+          updateGenerateButton();
+        } catch (error) {
+          console.error(error);
+          chapterSelect.innerHTML = '<option value="">加载失败</option>';
+          renderStatus(promptStatus, `加载章节失败: ${error.message}`, "error");
+        }
+      }
+
+      // 选择用户偏好
+      function selectPreference(pref) {
+        selectedPreference.value = pref;
+        document.querySelectorAll(".preference-card").forEach((card) => {
+          card.classList.remove("selected");
+        });
+        document.querySelector(`[data-preference="${pref}"]`).classList.add("selected");
+        updateGenerateButton();
+      }
+
+      function selectDensity(value) {
+        selectedDensity = value;
+        document.querySelectorAll(".density-option").forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.density === value);
+        });
+      }
+
+      // 更新生成按钮状态
+      function updateGenerateButton() {
+        const hasBook = bookSelect.value && selectedBook;
+        const hasChapter = chapterSelect.value && selectedChapter;
+        const hasPreference = selectedPreference.value;
+        generateButton.disabled = !(hasBook && hasChapter && hasPreference);
+      }
+
+      // 生成解读
+      async function generateInterpretation() {
+        if (!selectedBook || !selectedChapter || !selectedPreference.value) {
+          renderStatus(generationStatus, "请完成所有必填项", "error");
+          return;
+        }
+
+        const prefConfig = preferenceConfigs[selectedPreference.value];
+        if (!prefConfig) {
+          renderStatus(generationStatus, "用户偏好配置错误", "error");
+          return;
+        }
+
         generateButton.disabled = true;
+        renderStatus(generationStatus, "正在生成解读，请稍候...", "info");
+        outputSection.style.display = "none";
+
+        const payload = {
+          chapterTitle: selectedChapter.title_zh || selectedChapter.title,
+          chapterText: selectedChapter.content_zh || selectedChapter.content,
+          chapterSummary: selectedChapter.summary || selectedChapter.title_zh || selectedChapter.title,
+          // 向后兼容字段
+          userProfession: prefConfig.userProfession,
+          readingGoal: prefConfig.readingGoal,
+          focus: prefConfig.focus,
+          density: selectedDensity,
+          // 新的6个维度字段
+          userAge: prefConfig.age,
+          userProfessionDetail: prefConfig.profession,
+          userReadingGoal: prefConfig.readingGoal,
+          userReadingDuration: prefConfig.readingDuration,
+          userReadingRhythm: prefConfig.readingRhythm,
+          userLifeRole: prefConfig.lifeRole,
+          userCurrentFocus: prefConfig.currentFocus,
+          userPreferredTitle: prefConfig.preferredTitle,
+          userSummary: prefConfig.summary,
+        };
+
+        // 使用分解的提示词
+        payload.intro_prompt = introPrompt.value.trim();
+        payload.body_prompt = bodyPrompt.value.trim();
+        payload.quiz_prompt = quizPrompt.value.trim();
+        payload.question_prompt = questionPrompt.value.trim();
 
         try {
           const response = await fetch("/api/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(600000), // 10分钟超时
           });
-          const data = await response.json();
+
           if (!response.ok) {
-            throw new Error(data.error || "生成失败");
+            let errorMessage = "生成失败";
+            try {
+              const errorText = await response.text();
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (e) {
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
           }
-          renderStatus(generationStatus, "生成完成，请验收。", "success");
-          renderOutput(data.result);
+
+          const data = await response.json();
+          console.log("✅ 收到服务器响应:", data);
+          console.log("📊 data.result:", data.result);
+          console.log("🔧 data.result._debug_info:", data.result?._debug_info);
+          console.log("🧠 data.result._thinking_process:", data.result?._thinking_process ? "存在（长度: " + data.result._thinking_process.length + " 字符）" : "不存在");
+          
+          renderStatus(generationStatus, "解读生成完成！", "success");
+          currentInterpretationResult = data.result; // 保存解读结果
+          
+          // 显示调试信息（始终显示，即使没有数据也会显示提示）
+          displayDebugInfo(data.result);
+          
+          // 显示思考过程（始终显示，即使没有数据也会显示提示）
+          displayThinkingProcess(data.result);
+          
+          // 显示解读结果
+          displayMarkdownResult(data.result);
+          
+          // 如果启用了播客，显示生成播客按钮
+          if (enablePodcast.checked && data.result) {
+            showPodcastButton();
+          } else {
+            hidePodcastButton();
+          }
         } catch (error) {
-          console.error(error);
-          renderStatus(generationStatus, error.message, "error");
-          renderOutput(null);
+          console.error("生成解读失败:", error);
+          let errorMessage = "生成失败";
+          if (error.name === "AbortError" || error.name === "TimeoutError") {
+            errorMessage = "请求超时，请稍后重试";
+          } else if (error.message) {
+            errorMessage = error.message;
+          } else if (error instanceof TypeError && error.message.includes("fetch")) {
+            errorMessage = "网络请求失败，请检查服务器是否运行";
+          }
+          renderStatus(generationStatus, errorMessage, "error");
         } finally {
           generateButton.disabled = false;
         }
-      });
-
-      async function bootstrap() {
-        fillDefaults();
-        renderOutput(null);
-
-        try {
-          const response = await fetch("/api/settings/master_prompt");
-          const payload = await response.json();
-          if (response.ok && payload.value !== undefined) {
-            masterPrompt.value = payload.value;
-            renderStatus(promptStatus, "已加载核心提示词。", "success");
-          } else if (!response.ok) {
-            throw new Error(payload.error || "加载失败");
-          }
-        } catch (error) {
-          console.error(error);
-          renderStatus(promptStatus, error.message, "error");
-        }
       }
 
-      bootstrap();
+      // 显示调试信息
+      function displayDebugInfo(result) {
+        const debugInfoSection = document.getElementById("debugInfoSection");
+        const debugInfoContent = document.getElementById("debugInfoContent");
+        
+        if (!debugInfoSection || !debugInfoContent) {
+          console.error("❌ 找不到调试信息区域的DOM元素！");
+          return;
+        }
+        
+        console.log("🔧 displayDebugInfo called with result:", result);
+        console.log("🔧 _debug_info:", result?._debug_info);
+        
+        // 始终显示区域
+        debugInfoSection.style.display = "block";
+        
+        if (!result) {
+          debugInfoContent.innerHTML = `<div style="color: #f59e0b;">⚠️ 未收到结果数据</div>`;
+          return;
+        }
+        
+        // 即使没有 _debug_info，也显示一个默认的调试信息区域
+        if (!result._debug_info) {
+          console.log("⚠️ No _debug_info found, showing default debug info");
+          const keys = Object.keys(result);
+          debugInfoContent.innerHTML = `
+            <div style="margin-bottom: 8px; color: #f59e0b;"><strong>⚠️ 调试信息:</strong> 未从服务器获取到调试信息，可能后端未返回 _debug_info 字段</div>
+            <div style="margin-bottom: 8px;"><strong>结果对象键:</strong> ${keys.join(', ')}</div>
+            <div style="margin-top: 12px; padding: 8px; background: #fef3c7; border-radius: 4px; font-size: 12px;">
+              <strong>提示:</strong> 请检查后端代码中 call_llm 函数是否正确添加了 _debug_info 字段
+            </div>
+          `;
+          return;
+        }
+        
+        const info = result._debug_info;
+        
+        // 构建完整的参数显示
+        let thinkingDisplay = '❌ 未启用';
+        if (info.thinking) {
+          if (info.thinking.type === 'enabled') {
+            thinkingDisplay = '<span style="color: #059669;">✅ 已启用 (type: enabled)</span>';
+          } else if (info.thinking.type === 'disabled') {
+            thinkingDisplay = '<span style="color: #dc2626;">❌ 已禁用 (type: disabled)</span>';
+          } else if (info.thinking.type === 'auto') {
+            thinkingDisplay = '<span style="color: #f59e0b;">🔄 自动 (type: auto)</span>';
+          } else {
+            thinkingDisplay = `<span style="color: #64748b;">${JSON.stringify(info.thinking)}</span>`;
+          }
+        } else if (info.thinking_mode !== undefined) {
+          thinkingDisplay = info.thinking_mode ? '<span style="color: #059669;">✅ 已启用</span>' : '<span style="color: #dc2626;">❌ 未启用</span>';
+        }
+        
+        debugInfoContent.innerHTML = `
+          <div style="margin-bottom: 12px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div style="margin-bottom: 8px;"><strong style="color: #475569;">模型名称:</strong> <span style="color: #1e40af; font-weight: 600; font-size: 15px;">${info.model || 'N/A'}</span></div>
+            <div style="margin-bottom: 8px;"><strong style="color: #475569;">调用方式:</strong> <span style="color: #64748b;">${info.method || 'N/A'}</span></div>
+            ${info.base_url ? `<div style="margin-bottom: 8px;"><strong style="color: #475569;">Base URL:</strong> <span style="color: #64748b; font-size: 12px; word-break: break-all;">${info.base_url}</span></div>` : ''}
+            ${info.endpoint ? `<div style="margin-bottom: 8px;"><strong style="color: #475569;">API端点:</strong> <span style="color: #64748b; font-size: 12px; word-break: break-all;">${info.endpoint}</span></div>` : ''}
+          </div>
+          
+          <div style="margin-top: 16px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <div style="margin-bottom: 10px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">参数配置</div>
+            <div style="margin-bottom: 8px;"><strong style="color: #475569;">Temperature:</strong> <span style="color: #059669; font-weight: 600;">${info.temperature !== undefined ? info.temperature : 0.3}</span></div>
+            <div style="margin-bottom: 8px;"><strong style="color: #475569;">Max Tokens:</strong> <span style="color: #059669; font-weight: 600;">${info.max_tokens !== undefined ? info.max_tokens : 16000}</span></div>
+            <div style="margin-bottom: 8px;"><strong style="color: #475569;">深度思考 (Thinking):</strong> ${thinkingDisplay}</div>
+            <div style="margin-bottom: 8px;"><strong style="color: #475569;">Stream:</strong> ${info.stream ? '<span style="color: #059669;">✅ 已启用</span>' : '<span style="color: #dc2626;">❌ 未启用</span>'}</div>
+          </div>
+          
+          ${info.thinking ? `<div style="margin-top: 12px; padding: 8px; background: #f0f9ff; border-radius: 4px; font-size: 12px; color: #1e40af;">
+            <strong>Thinking 参数详情:</strong> <code style="background: #ffffff; padding: 2px 6px; border-radius: 3px;">${JSON.stringify(info.thinking, null, 2)}</code>
+          </div>` : ''}
+        `;
+      }
+      
+      // 显示思考过程
+      function displayThinkingProcess(result) {
+        const thinkingSection = document.getElementById("thinkingProcessSection");
+        const thinkingContent = document.getElementById("thinkingProcessContent");
+        
+        if (!thinkingSection || !thinkingContent) {
+          console.error("❌ 找不到思考过程区域的DOM元素！");
+          return;
+        }
+        
+        console.log("🧠 displayThinkingProcess called with result:", result);
+        console.log("🧠 _thinking_process:", result?._thinking_process ? "存在（长度: " + result._thinking_process.length + " 字符）" : "不存在");
+        
+        // 始终显示区域
+        thinkingSection.style.display = "block";
+        
+        if (!result) {
+          thinkingContent.innerHTML = `<div style="color: #f59e0b;">⚠️ 未收到结果数据</div>`;
+          return;
+        }
+        
+        if (!result._thinking_process) {
+          console.log("⚠️ No _thinking_process found");
+          thinkingContent.innerHTML = `
+            <div style="color: #f59e0b; padding: 12px; background: #fef3c7; border-radius: 4px;">
+              <strong>⚠️ 未检测到思考过程</strong><br>
+              <div style="margin-top: 8px; font-size: 13px;">
+                可能的原因：<br>
+                1. 模型未返回思考过程<br>
+                2. 思考过程格式未被识别<br>
+                3. 后端未正确提取思考过程<br><br>
+                结果对象键: ${Object.keys(result).join(', ')}
+              </div>
+            </div>
+          `;
+          return;
+        }
+        
+        thinkingContent.textContent = result._thinking_process;
+      }
+      
+      // 显示Markdown格式的结果
+      function displayMarkdownResult(result) {
+        if (!markdownOutput || !outputSection) {
+          console.error("❌ 找不到markdown输出区域的DOM元素！");
+          return;
+        }
+        
+        if (!result) {
+          markdownOutput.innerHTML = "<p>暂无结果</p>";
+          outputSection.style.display = "block";
+          return;
+        }
+
+        let markdown = "";
+        
+        // 思考过程已经在独立区域显示，这里不再重复显示
+
+        if (result.personalized_intro) {
+          markdown += `## 1. 个性化导读\n\n${result.personalized_intro}\n\n`;
+        }
+
+        if (result.interpretation) {
+          markdown += `## 2. 正式解读内容\n\n${result.interpretation}\n\n`;
+        }
+
+        if (result.summary_and_application) {
+          markdown += `## 3. 章节总结与应用\n\n${result.summary_and_application}\n\n`;
+        }
+
+        if (result.powerful_questions) {
+          markdown += `## 4. 强有力的思考问题\n\n`;
+          if (typeof result.powerful_questions === "string") {
+            markdown += `${result.powerful_questions}\n\n`;
+          } else if (Array.isArray(result.powerful_questions)) {
+            result.powerful_questions.forEach((q) => {
+              markdown += `- ${q}\n`;
+            });
+            markdown += `\n`;
+          }
+        }
+
+        if (result.quiz && Array.isArray(result.quiz)) {
+          markdown += `## 5. 章节考试\n\n`;
+          result.quiz.forEach((item, index) => {
+            markdown += `### 题目 ${index + 1}\n\n`;
+            markdown += `**${item.question || ""}**\n\n`;
+            if (item.options && Array.isArray(item.options)) {
+              item.options.forEach((opt, idx) => {
+                markdown += `${String.fromCharCode(65 + idx)}. ${opt}\n`;
+              });
+            }
+            markdown += `\n**答案：** ${item.answer || "?"}\n\n`;
+            if (item.explanation) {
+              markdown += `**解析：** ${item.explanation}\n\n`;
+            }
+            markdown += `---\n\n`;
+          });
+        }
+
+        // 使用 marked 库渲染 Markdown
+        if (typeof marked !== "undefined") {
+          markdownOutput.innerHTML = marked.parse(markdown);
+        } else {
+          // 降级方案：直接显示原始 Markdown
+          markdownOutput.textContent = markdown;
+        }
+
+        outputSection.style.display = "block";
+        markdownOutput.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      // 事件监听
+      bookSelect.addEventListener("change", (e) => {
+        const bookId = e.target.value;
+        if (bookId) {
+          loadChapters(bookId);
+        } else {
+          chapterSelect.innerHTML = '<option value="">请先选择书籍</option>';
+          chapterSelect.disabled = true;
+          selectedBook = null;
+          selectedChapter = null;
+          updateGenerateButton();
+        }
+      });
+
+      chapterSelect.addEventListener("change", (e) => {
+        const chapterId = e.target.value;
+        if (chapterId && chapters.length > 0) {
+          selectedChapter = chapters.find((ch) => ch.id === parseInt(chapterId));
+        } else {
+          selectedChapter = null;
+        }
+        updateGenerateButton();
+      });
+
+      // 显示播客按钮
+      function showPodcastButton() {
+        podcastSection.style.display = "block";
+        document.getElementById("podcastButtonContainer").style.display = "block";
+        document.getElementById("podcastAudioContainer").style.display = "none";
+      }
+
+      // 隐藏播客按钮
+      function hidePodcastButton() {
+        podcastSection.style.display = "none";
+      }
+
+      // 从结果生成播客（点击按钮时调用）
+      async function generatePodcastFromResult() {
+        if (!currentInterpretationResult) {
+          podcastStatus.textContent = "没有可用的解读结果";
+          return;
+        }
+        await generatePodcast(currentInterpretationResult);
+      }
+
+      // 生成播客音频
+      async function generatePodcast(interpretationResult) {
+        if (!interpretationResult) {
+          return;
+        }
+        
+        // 组合解读文本
+        let podcastText = "";
+        if (interpretationResult.personalized_intro) {
+          podcastText += interpretationResult.personalized_intro + "\n\n";
+        }
+        if (interpretationResult.interpretation) {
+          podcastText += interpretationResult.interpretation + "\n\n";
+        }
+        if (interpretationResult.summary_and_application) {
+          podcastText += interpretationResult.summary_and_application + "\n\n";
+        }
+        
+        if (!podcastText.trim()) {
+          podcastStatus.textContent = "没有可用的文本内容生成播客";
+          return;
+        }
+        
+        // 隐藏按钮，显示音频容器
+        document.getElementById("podcastButtonContainer").style.display = "none";
+        document.getElementById("podcastAudioContainer").style.display = "block";
+        podcastStatus.textContent = "正在生成播客音频...";
+        podcastAudio.src = "";
+        currentAudioBlob = null;
+        
+        try {
+          const podcastPayload = {
+            text: podcastText,
+            voice_type: voiceType.value,
+            language: "zh",
+            speed_ratio: 1.0,
+            volume_ratio: 1.0,
+            pitch_ratio: 1.0,
+          };
+          
+          const response = await fetch("/api/podcast/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(podcastPayload),
+            signal: AbortSignal.timeout(120000), // 2分钟超时
+          });
+          
+          if (!response.ok) {
+            let errorMessage = "生成播客失败";
+            try {
+              const errorText = await response.text();
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (e) {
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+          
+          const data = await response.json();
+          
+          // 将Base64音频数据转换为Blob
+          const audioBytes = Uint8Array.from(atob(data.audio_base64), c => c.charCodeAt(0));
+          currentAudioBlob = new Blob([audioBytes], { type: "audio/mpeg" });
+          const audioUrl = URL.createObjectURL(currentAudioBlob);
+          
+          podcastAudio.src = audioUrl;
+          podcastStatus.textContent = `播客生成成功！时长：${data.duration || "未知"}秒`;
+        } catch (error) {
+          console.error("生成播客失败:", error);
+          podcastStatus.textContent = `生成播客失败: ${error.message}`;
+          podcastStatus.style.color = "#b91c1c";
+        }
+      }
+      
+      // 下载播客音频
+      downloadPodcast.addEventListener("click", () => {
+        if (!currentAudioBlob) {
+          alert("没有可下载的音频");
+          return;
+        }
+        
+        const url = URL.createObjectURL(currentAudioBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `播客_${selectedChapter?.title_zh || selectedChapter?.title || "解读"}_${new Date().getTime()}.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+      
+      // 播客配置显示/隐藏
+      enablePodcast.addEventListener("change", (e) => {
+        podcastConfig.style.display = e.target.checked ? "flex" : "none";
+      });
+      
+      // 初始化：加载提示词并设置第一个标签为激活状态
+      document.addEventListener("DOMContentLoaded", () => {
+        loadPromptParts();
+        switchPromptTab("intro");
+        selectDensity(selectedDensity);
+      });
+
+      generateButton.addEventListener("click", generateInterpretation);
+
+      // 初始化
+      loadBooks();
     </script>
   </body>
 </html>
-

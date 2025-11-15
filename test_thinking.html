@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深度思考模型测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .input-section textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        .input-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .result-section {
+            display: none;
+        }
+
+        .result-panel {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .result-panel h3 {
+            color: #1e40af;
+            margin-bottom: 12px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-panel h3::before {
+            content: "🧠";
+            font-size: 20px;
+        }
+
+        .result-panel.answer h3::before {
+            content: "💬";
+        }
+
+        .result-content {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 14px;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+        }
+
+        .debug-info {
+            background: #f0f9ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .debug-info h4 {
+            color: #1e40af;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .debug-info-item {
+            margin-bottom: 6px;
+            color: #475569;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 深度思考模型测试页面</h1>
+            <p>测试豆包深度思考模型的 reasoning_content 提取和显示</p>
+        </div>
+
+        <div class="content">
+            <div class="input-section">
+                <label for="testPrompt">测试提示词：</label>
+                <textarea id="testPrompt" placeholder="请输入你的测试提示词...">我要研究深度思考模型与非深度思考模型区别的课题，怎么体现我的专业性</textarea>
+            </div>
+
+            <div class="input-section">
+                <div style="margin-bottom: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="margin-bottom: 12px; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">⚙️ 参数配置</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                        <div>
+                            <label for="temperature" style="display: block; margin-bottom: 6px; font-weight: 500; color: #475569; font-size: 13px;">Temperature:</label>
+                            <input type="number" id="temperature" value="0.3" min="0" max="2" step="0.1" style="width: 100%; padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label for="maxTokens" style="display: block; margin-bottom: 6px; font-weight: 500; color: #475569; font-size: 13px;">Max Tokens:</label>
+                            <input type="number" id="maxTokens" value="16000" min="1" max="16000" step="1000" style="width: 100%; padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                        </div>
+                        <div>
+                            <label for="thinking" style="display: block; margin-bottom: 6px; font-weight: 500; color: #475569; font-size: 13px;">Thinking:</label>
+                            <select id="thinking" style="width: 100%; padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                                <option value="auto" selected>auto (模型自动触发)</option>
+                                <option value="enabled">enabled (显式启用)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" id="testButton" onclick="testThinking()">🚀 开始测试</button>
+                <button class="btn-secondary" onclick="clearResults()">🗑️ 清空结果</button>
+            </div>
+
+            <div class="status" id="status"></div>
+
+            <div class="result-section" id="resultSection">
+                <div class="debug-info" id="debugInfo" style="display: none;">
+                    <h4>🔧 调试信息</h4>
+                    <div id="debugInfoContent"></div>
+                </div>
+
+                <div class="result-panel">
+                    <h3>深度思考过程 (reasoning_content)</h3>
+                    <div class="result-content" id="thinkingContent">等待测试结果...</div>
+                </div>
+
+                <div class="result-panel answer">
+                    <h3>最终回答 (content)</h3>
+                    <div class="result-content" id="answerContent">等待测试结果...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin; // 使用当前页面的域名和端口
+
+        async function testThinking() {
+            const testButton = document.getElementById('testButton');
+            const status = document.getElementById('status');
+            const resultSection = document.getElementById('resultSection');
+            const thinkingContent = document.getElementById('thinkingContent');
+            const answerContent = document.getElementById('answerContent');
+            const debugInfo = document.getElementById('debugInfo');
+            const debugInfoContent = document.getElementById('debugInfoContent');
+
+            const prompt = document.getElementById('testPrompt').value.trim();
+            if (!prompt) {
+                showStatus('请输入测试提示词', 'error');
+                return;
+            }
+
+            // 禁用按钮，显示加载状态
+            testButton.disabled = true;
+            testButton.innerHTML = '<span class="loading"></span>测试中...';
+            showStatus('正在调用深度思考模型，请稍候...', 'info');
+            resultSection.style.display = 'none';
+
+            try {
+                // 读取参数配置
+                const temperature = parseFloat(document.getElementById('temperature').value) || 0.3;
+                const max_tokens = parseInt(document.getElementById('maxTokens').value) || 16000;
+                const thinking = document.getElementById('thinking').value || 'auto';
+                
+                // 调用后端的解读生成接口
+                const response = await fetch(`${API_BASE}/api/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chapterTitle: '测试章节',
+                        chapterText: prompt,
+                        chapterSummary: '这是测试章节的摘要',
+                        userProfession: '测试用户',
+                        readingGoal: '测试目标',
+                        focus: '测试偏好',
+                        density: '50% 核心',
+                        // 参数配置
+                        temperature: temperature,
+                        max_tokens: max_tokens,
+                        thinking: thinking,
+                        // 使用默认的提示词部分
+                        intro_prompt: '请生成个性化导读',
+                        body_prompt: `请详细解读以下内容：\n{chapter_fulltext}`,
+                        quiz_prompt: '请生成选择题',
+                        question_prompt: '请生成思考问题'
+                    }),
+                });
+
+                // 读取响应
+                const responseText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error(`服务器响应格式错误: ${responseText.substring(0, 200)}`);
+                }
+
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // 显示结果
+                showStatus('✅ 测试完成！', 'success');
+
+                // 显示调试信息
+                if (data.result && data.result._debug_info) {
+                    const info = data.result._debug_info;
+                    debugInfoContent.innerHTML = `
+                        <div class="debug-info-item"><strong>模型名称:</strong> ${info.model || 'N/A'}</div>
+                        <div class="debug-info-item"><strong>调用方式:</strong> ${info.method || 'N/A'}</div>
+                        <div class="debug-info-item"><strong>Base URL:</strong> ${info.base_url || 'N/A'}</div>
+                        <div class="debug-info-item"><strong>Temperature:</strong> ${info.temperature || 0.3}</div>
+                        <div class="debug-info-item"><strong>Max Tokens:</strong> ${info.max_tokens || 16000}</div>
+                        <div class="debug-info-item"><strong>Thinking:</strong> ${typeof info.thinking === 'object' ? JSON.stringify(info.thinking) : info.thinking || 'N/A'}</div>
+                    `;
+                    debugInfo.style.display = 'block';
+                } else {
+                    debugInfo.style.display = 'none';
+                }
+
+                // 显示思考过程
+                if (data.result && data.result._thinking_process) {
+                    thinkingContent.textContent = data.result._thinking_process;
+                    console.log('✅ 找到思考过程，长度:', data.result._thinking_process.length);
+                } else {
+                    thinkingContent.textContent = '❌ 未找到思考过程 (_thinking_process 字段不存在)';
+                    console.log('❌ 未找到思考过程');
+                    console.log('结果对象的所有键:', data.result ? Object.keys(data.result) : 'N/A');
+                }
+
+                // 显示最终回答（从JSON中提取）
+                if (data.result) {
+                    const result = data.result;
+                    let answerText = '';
+                    
+                    if (result.interpretation) {
+                        answerText += `【正文解读】\n${result.interpretation}\n\n`;
+                    }
+                    if (result.personalized_intro) {
+                        answerText += `【个性化导读】\n${result.personalized_intro}\n\n`;
+                    }
+                    if (result.quiz) {
+                        answerText += `【选择题】\n${result.quiz}\n\n`;
+                    }
+                    if (result.question) {
+                        answerText += `【思考问题】\n${result.question}\n\n`;
+                    }
+                    
+                    if (answerText) {
+                        answerContent.textContent = answerText.trim();
+                    } else {
+                        answerContent.textContent = '未找到解读内容，原始结果: ' + JSON.stringify(result, null, 2);
+                    }
+                } else {
+                    answerContent.textContent = '未收到结果数据';
+                }
+
+                resultSection.style.display = 'block';
+
+            } catch (error) {
+                console.error('测试失败:', error);
+                showStatus(`❌ 测试失败: ${error.message}`, 'error');
+                thinkingContent.textContent = `错误: ${error.message}`;
+                answerContent.textContent = '';
+                resultSection.style.display = 'block';
+            } finally {
+                testButton.disabled = false;
+                testButton.innerHTML = '🚀 开始测试';
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function clearResults() {
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('thinkingContent').textContent = '等待测试结果...';
+            document.getElementById('answerContent').textContent = '等待测试结果...';
+        }
+    </script>
+</body>
+</html>
+

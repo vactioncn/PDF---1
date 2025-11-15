@@ -1,0 +1,60 @@
+============================================================
+火山引擎 TTS API 错误日志（更新版）
+============================================================
+
+【API端点】
+URL: https://openspeech.bytedance.com/api/v1/tts
+Method: POST
+Content-Type: application/json
+
+【当前请求格式（根据技术支持建议）】
+{
+  "app": {
+    "appid": "9506742782",
+    "token": "dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV",
+    "cluster": "volcano_tts"
+  },
+  "user": {
+    "uid": "dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV"
+  },
+  "audio": {
+    "voice_type": "BV700_streaming",
+    "encoding": "mp3",
+    "rate": 24000,
+    "language": "zh",
+    "speed_ratio": 1.0,
+    "volume_ratio": 1.0,
+    "pitch_ratio": 1.0
+  },
+  "request": {
+    "text": "测试文本",
+    "reqid": "唯一请求ID",
+    "operation": "???"  // 需要确认正确的值
+  },
+  "timestamp": 1763100634,
+  "signature": "..."
+}
+
+【尝试过的operation值及错误】
+1. "tts" → 错误: "Unsupported operation: tts"
+2. "text_to_speech" → 错误: "Unsupported operation: text_to_speech"
+3. "synthesize" → 错误: "Unsupported operation: synthesize"
+4. 不包含operation → 错误: "Missing required: request.operation"
+
+【错误演进过程】
+1. 初始错误: Missing required: app.appid
+2. 添加app.appid后: Missing required: app.cluster
+3. 添加app.cluster后: Missing required: user.uid
+4. 添加user.uid后: Missing required: audio
+5. 添加audio对象后: Missing required: app.cluster (再次)
+6. 添加app.cluster后: Missing required: request.operation
+7. 添加request.operation="tts"后: Unsupported operation: tts
+8. 尝试其他operation值: 均返回 Unsupported operation
+
+【问题】
+1. request.operation 的正确值应该是什么？
+2. 签名方式是否需要根据新的JSON结构调整？
+3. 是否有其他必需的参数？
+
+【参考文档】
+https://www.volcengine.com/docs/6561/1668014

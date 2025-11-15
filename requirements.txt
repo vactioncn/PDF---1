@@ -8,4 +8,7 @@ SQLAlchemy==2.0.35
 requests==2.32.3
 ebooklib==0.18
 beautifulsoup4==4.12.3
+websocket-client==1.7.0
+websockets==13.1
+volcengine-python-sdk[ark]
 

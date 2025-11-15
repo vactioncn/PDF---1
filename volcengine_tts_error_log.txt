@@ -1,0 +1,68 @@
+============================================================
+火山引擎 TTS API 错误日志
+============================================================
+
+【API端点】
+URL: https://openspeech.bytedance.com/api/v1/tts
+Method: POST
+
+【请求配置】
+Access Key: dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV (已脱敏)
+Secret Key: 已配置
+App ID: 9506742782
+
+【请求参数】
+{
+  "app": {
+    "appid": "9506742782",
+    "cluster": "volcano_tts"
+  },
+  "user": {
+    "uid": "dvoCWZAXA-Ilaw9F3LOCR9Qvnx0wZ1pV"
+  },
+  "text": "测试文本",
+  "text_type": "plain",
+  "voice_type": "BV700_streaming",
+  "language": "zh",
+  "speed_ratio": 1.0,
+  "volume_ratio": 1.0,
+  "pitch_ratio": 1.0,
+  "encoding": "mp3",
+  "rate": 24000,
+  "timestamp": 1763100443,
+  "signature": "W1bK9k7vIBITRDqk7XGJbTdUhrt9awu1Haduxi9qhxw=..."
+}
+
+【签名生成方式】
+待签名字符串格式：
+POST
+openspeech.bytedance.com
+/api/v1/tts
+appid=9506742782&encoding=mp3&language=zh&pitch_ratio=1.0&rate=24000&speed_ratio=1.0&text=%E6%B5%8B%E8%AF%95%E6%96%87%E6%9C%AC&text_type=plain&timestamp=1763100443&voice_type=BV700_streaming&volume_ratio=1.0
+
+签名算法：HMAC-SHA256 + Base64
+
+【响应错误】
+HTTP状态码: 400
+错误码: 3001
+错误信息: "pushing data to async workflow: unable to unmarshal request: Missing required: audio"
+
+【响应头】
+Server: Tengine
+Content-Type: application/json; charset=utf-8
+X-Tt-Logid: 20251114140724DA6965E0AB982A42F196
+
+【尝试的方法】
+1. GET请求（参数在URL query string中） - 404
+2. POST form-data格式 - 500 (错误码3031: unable to unmarshal request)
+3. POST JSON格式（扁平结构） - 400 (错误码3001: Missing required: app.appid)
+4. POST JSON格式（嵌套结构，添加app.cluster） - 400 (错误码3001: Missing required: user.uid)
+5. POST JSON格式（嵌套结构，添加user.uid） - 400 (错误码3001: Missing required: audio)
+
+【问题】
+1. TTS API应该是输入文本，输出音频，但错误信息要求"audio"参数，这似乎不对
+2. 不确定正确的API端点、参数格式和签名方式
+3. 需要确认火山引擎TTS API的正确调用方式
+
+【参考文档】
+https://www.volcengine.com/docs/6561/1668014
