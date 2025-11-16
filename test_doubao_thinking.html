@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>豆包深度思考能力测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 导航栏样式 */
+        .top-navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px 20px;
+            margin: -20px -20px 20px -20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-brand {
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-brand:hover {
+            opacity: 0.9;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.25);
+            font-weight: 500;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .book-section {
+            margin-bottom: 30px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .book-section h3 {
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        .book-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .book-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .book-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .book-item label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+
+        .book-item select {
+            padding: 8px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .book-item select:disabled {
+            background: #f1f5f9;
+            cursor: not-allowed;
+        }
+
+        .chapters-list {
+            margin-top: 16px;
+            padding: 16px;
+            background: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .chapters-list-title {
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chapters-list-title span {
+            color: #64748b;
+            font-weight: 400;
+            font-size: 13px;
+        }
+
+        .chapter-item {
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #ffffff;
+        }
+
+        .chapter-item:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .chapter-item.selected {
+            border-color: #667eea;
+            background: #eff6ff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .chapter-item-title {
+            font-weight: 500;
+            color: #1e293b;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .chapter-item-meta {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .chapters-loading {
+            padding: 20px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .chapters-empty {
+            padding: 20px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .input-section textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        .input-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .params-section {
+            margin-bottom: 30px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .params-section h3 {
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #475569;
+            font-size: 14px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        .params-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        .param-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .param-item label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+
+        .param-item input,
+        .param-item select {
+            padding: 8px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .result-section {
+            display: none;
+        }
+
+        .result-panel {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .result-panel h3 {
+            color: #1e40af;
+            margin-bottom: 12px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-panel h3::before {
+            content: "🧠";
+            font-size: 20px;
+        }
+
+        .result-panel.answer h3::before {
+            content: "💬";
+        }
+
+        .result-content {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+            max-height: 600px;
+            overflow-y: auto;
+            font-size: 14px;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="top-navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">📚 PDF解读系统</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 首页</a>
+                <a href="/aigen_test_page.html" class="nav-link">✨ 个性化解读</a>
+                <a href="/test_doubao_thinking.html" class="nav-link">🧠 深度思考测试</a>
+                <a href="/test_thinking.html" class="nav-link">🔬 思考模型测试</a>
+                <a href="/parser_test_page.html" class="nav-link">📄 文档解析</a>
+                <a href="/admin_books.html" class="nav-link">📖 书籍管理</a>
+                <a href="/admin.html" class="nav-link">⚙️ 系统管理</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1>🧠 豆包深度思考能力测试</h1>
+            <p>纯测试页面 - 直接调用豆包深度思考模型，无额外逻辑</p>
+        </div>
+
+        <div class="content">
+            <div class="book-section">
+                <h3>📚 选择书籍和章节（可选）</h3>
+                <div class="book-grid">
+                    <div class="book-item">
+                        <label for="bookSelect">选择书籍：</label>
+                        <select id="bookSelect">
+                            <option value="">请选择书籍（可选）...</option>
+                        </select>
+                    </div>
+                    <div class="book-item">
+                        <label for="chapterSelect">章节选择器：</label>
+                        <select id="chapterSelect" disabled>
+                            <option value="">请先选择书籍</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 章节列表显示区域 -->
+                <div id="chaptersListContainer" style="display: none;">
+                    <div class="chapters-list">
+                        <div class="chapters-list-title">
+                            章节列表 <span id="chaptersCount"></span>
+                        </div>
+                        <div id="chaptersListContent">
+                            <!-- 章节列表将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 加载状态 -->
+                <div id="chaptersLoading" style="display: none; padding: 16px; text-align: center; color: #64748b;">
+                    <span class="loading"></span> 正在加载章节...
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label for="testPrompt">测试提示词：</label>
+                <textarea id="testPrompt" placeholder="请输入你的测试提示词...">深度解读一下"上善若水"</textarea>
+            </div>
+
+            <div class="params-section">
+                <h3>⚙️ 参数配置</h3>
+                <div class="params-grid">
+                    <div class="param-item">
+                        <label for="temperature">Temperature:</label>
+                        <input type="number" id="temperature" value="0.3" min="0" max="2" step="0.1">
+                    </div>
+                    <div class="param-item">
+                        <label for="maxTokens">Max Tokens:</label>
+                        <input type="number" id="maxTokens" value="16000" min="1" max="16000" step="1000">
+                    </div>
+                    <div class="param-item">
+                        <label for="model">Model:</label>
+                        <select id="model">
+                            <option value="doubao-seed-1-6-251015" selected>doubao-seed-1-6-251015</option>
+                            <option value="doubao-seed-1-6-thinking-250715">doubao-seed-1-6-thinking-250715</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" id="testButton" onclick="testThinking()">🚀 开始测试</button>
+                <button class="btn-secondary" onclick="clearResults()">🗑️ 清空结果</button>
+            </div>
+
+            <div class="status" id="status"></div>
+
+            <div class="result-section" id="resultSection">
+                <div class="result-panel">
+                    <h3>深度思考过程 (reasoning_content)</h3>
+                    <div class="result-content" id="thinkingContent">等待测试结果...</div>
+                </div>
+
+                <div class="result-panel answer">
+                    <h3>最终回答 (content)</h3>
+                    <div class="result-content" id="answerContent">等待测试结果...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        
+        // 书籍和章节相关变量
+        let books = [];
+        let chapters = [];
+        let selectedBook = null;
+        let selectedChapter = null;
+
+        // 加载书籍列表
+        async function loadBooks() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/books?page=1&per_page=100`);
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                books = data.books || [];
+                const bookSelect = document.getElementById('bookSelect');
+                bookSelect.innerHTML = '<option value="">请选择书籍（可选）...</option>';
+                books.forEach((book) => {
+                    const option = document.createElement('option');
+                    option.value = book.id;
+                    option.textContent = `${book.filename} (${book.chapter_count}章)`;
+                    bookSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('加载书籍失败:', error);
+                showStatus(`加载书籍失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 渲染章节列表
+        function renderChaptersList() {
+            const container = document.getElementById('chaptersListContainer');
+            const content = document.getElementById('chaptersListContent');
+            const count = document.getElementById('chaptersCount');
+            const loading = document.getElementById('chaptersLoading');
+            const chapterSelect = document.getElementById('chapterSelect');
+
+            if (!container || !content || !count) {
+                console.error('找不到章节列表容器元素');
+                return;
+            }
+
+            // 隐藏加载状态
+            if (loading) {
+                loading.style.display = 'none';
+            }
+
+            if (!chapters || chapters.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            // 显示容器
+            container.style.display = 'block';
+            count.textContent = `（共 ${chapters.length} 章）`;
+
+            // 清空内容
+            content.innerHTML = '';
+
+            // 渲染章节列表
+            chapters.forEach((chapter, index) => {
+                const chapterDiv = document.createElement('div');
+                chapterDiv.className = 'chapter-item';
+                chapterDiv.dataset.chapterId = chapter.id;
+                
+                const displayTitle = chapter.title_zh || chapter.title || `章节 ${index + 1}`;
+                const wordCount = chapter.word_count || 0;
+                
+                chapterDiv.innerHTML = `
+                    <div class="chapter-item-title">${index + 1}. ${displayTitle}</div>
+                    <div class="chapter-item-meta">字数: ${wordCount.toLocaleString()} | ID: ${chapter.id}</div>
+                `;
+
+                // 点击事件
+                chapterDiv.addEventListener('click', () => {
+                    // 移除之前选中的
+                    document.querySelectorAll('.chapter-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    // 选中当前项
+                    chapterDiv.classList.add('selected');
+                    
+                    // 更新下拉选择器
+                    if (chapterSelect) {
+                        chapterSelect.value = chapter.id;
+                    }
+                    
+                    // 保存选中的章节
+                    selectedChapter = chapter;
+                    console.log('选中章节:', selectedChapter);
+                });
+
+                content.appendChild(chapterDiv);
+            });
+
+            console.log('章节列表渲染完成，共', chapters.length, '章');
+        }
+
+        // 加载章节列表
+        async function loadChapters(bookId) {
+            const chapterSelect = document.getElementById('chapterSelect');
+            const loading = document.getElementById('chaptersLoading');
+            const container = document.getElementById('chaptersListContainer');
+            
+            if (!chapterSelect) {
+                console.error('找不到章节选择元素');
+                return;
+            }
+            
+            // 显示加载状态
+            if (loading) {
+                loading.style.display = 'block';
+            }
+            if (container) {
+                container.style.display = 'none';
+            }
+            
+            chapterSelect.disabled = true;
+            chapterSelect.innerHTML = '<option value="">加载中...</option>';
+
+            try {
+                console.log('开始加载书籍章节，bookId:', bookId);
+                const response = await fetch(`${API_BASE}/api/admin/books/${bookId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('收到章节数据:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                selectedBook = data.book;
+                chapters = data.chapters || [];
+                console.log('解析到的章节数量:', chapters.length);
+                console.log('章节数据:', chapters);
+
+                // 更新下拉选择器
+                chapterSelect.innerHTML = '<option value="">请选择章节...</option>';
+                if (chapters.length === 0) {
+                    chapterSelect.innerHTML = '<option value="">该书籍暂无章节</option>';
+                    chapterSelect.disabled = true;
+                    if (loading) {
+                        loading.style.display = 'none';
+                    }
+                    if (container) {
+                        container.style.display = 'block';
+                        container.querySelector('#chaptersListContent').innerHTML = 
+                            '<div class="chapters-empty">该书籍暂无章节</div>';
+                    }
+                    return;
+                }
+                
+                chapters.forEach((chapter, index) => {
+                    const option = document.createElement('option');
+                    option.value = chapter.id;
+                    const displayTitle = chapter.title_zh || chapter.title || `章节 ${index + 1}`;
+                    option.textContent = `${index + 1}. ${displayTitle}`;
+                    chapterSelect.appendChild(option);
+                });
+
+                chapterSelect.disabled = false;
+                
+                // 渲染章节列表
+                renderChaptersList();
+                
+                console.log('章节加载完成，共', chapters.length, '章');
+            } catch (error) {
+                console.error('加载章节失败:', error);
+                chapterSelect.innerHTML = '<option value="">加载失败</option>';
+                chapterSelect.disabled = true;
+                if (loading) {
+                    loading.style.display = 'none';
+                }
+                if (container) {
+                    container.style.display = 'block';
+                    container.querySelector('#chaptersListContent').innerHTML = 
+                        `<div class="chapters-empty" style="color: #ef4444;">加载失败: ${error.message}</div>`;
+                }
+                // 注意：showStatus可能在后面定义，所以这里先用alert或确保showStatus已定义
+                if (typeof showStatus === 'function') {
+                    showStatus(`加载章节失败: ${error.message}`, 'error');
+                } else {
+                    alert(`加载章节失败: ${error.message}`);
+                }
+            }
+        }
+
+        async function testThinking() {
+            const testButton = document.getElementById('testButton');
+            const status = document.getElementById('status');
+            const resultSection = document.getElementById('resultSection');
+            const thinkingContent = document.getElementById('thinkingContent');
+            const answerContent = document.getElementById('answerContent');
+
+            let prompt = document.getElementById('testPrompt').value.trim();
+            if (!prompt) {
+                showStatus('请输入测试提示词', 'error');
+                return;
+            }
+
+            // 如果选择了章节，将章节内容添加到提示词中
+            if (selectedChapter) {
+                const chapterContent = selectedChapter.content_zh || selectedChapter.content;
+                const chapterTitle = selectedChapter.title_zh || selectedChapter.title;
+                if (chapterContent) {
+                    // 将提示词和章节内容组合
+                    prompt = `${prompt}\n\n【章节标题】${chapterTitle}\n\n【章节内容】\n${chapterContent}`;
+                }
+            }
+
+            // 读取参数
+            const temperature = parseFloat(document.getElementById('temperature').value) || 0.3;
+            const max_tokens = parseInt(document.getElementById('maxTokens').value) || 16000;
+            const model = document.getElementById('model').value || 'doubao-seed-1-6-251015';
+
+            // 禁用按钮，显示加载状态
+            testButton.disabled = true;
+            testButton.innerHTML = '<span class="loading"></span>测试中...';
+            showStatus('正在调用豆包深度思考模型，请稍候...', 'info');
+            resultSection.style.display = 'none';
+
+            try {
+                // 调用简单的测试接口
+                const response = await fetch(`${API_BASE}/api/test/doubao-thinking`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        temperature: temperature,
+                        max_tokens: max_tokens,
+                        model: model,
+                    }),
+                });
+
+                // 读取响应
+                const responseText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error(`服务器响应格式错误: ${responseText.substring(0, 200)}`);
+                }
+
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // 显示结果
+                showStatus('✅ 测试完成！', 'success');
+
+                // 显示思考过程
+                if (data.reasoning_content) {
+                    thinkingContent.textContent = data.reasoning_content;
+                    console.log('✅ 找到思考过程，长度:', data.reasoning_content.length);
+                } else {
+                    thinkingContent.textContent = '❌ 未找到思考过程 (reasoning_content 字段不存在)\n\n' +
+                        '可能原因：\n' +
+                        '1. 模型未触发深度思考\n' +
+                        '2. 模型版本不支持深度思考\n' +
+                        '3. API响应中未包含 reasoning_content 字段';
+                    console.log('❌ 未找到思考过程');
+                }
+
+                // 显示最终回答
+                if (data.content) {
+                    answerContent.textContent = data.content;
+                    console.log('✅ 找到回答内容，长度:', data.content.length);
+                } else {
+                    answerContent.textContent = '❌ 未找到回答内容';
+                    console.log('❌ 未找到回答内容');
+                }
+
+                resultSection.style.display = 'block';
+
+            } catch (error) {
+                console.error('测试失败:', error);
+                showStatus(`❌ 测试失败: ${error.message}`, 'error');
+                thinkingContent.textContent = `错误: ${error.message}`;
+                answerContent.textContent = '';
+                resultSection.style.display = 'block';
+            } finally {
+                testButton.disabled = false;
+                testButton.innerHTML = '🚀 开始测试';
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        function clearResults() {
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('thinkingContent').textContent = '等待测试结果...';
+            document.getElementById('answerContent').textContent = '等待测试结果...';
+        }
+
+        // 自动高亮当前页面的导航链接
+        function highlightCurrentNav() {
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href === currentPath || 
+                    (currentPath === '/' && href === '/') ||
+                    (currentPath !== '/' && currentPath.endsWith(href)) ||
+                    (href !== '/' && currentPath.includes(href.replace('/', '')))) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        // 书籍选择事件监听
+        document.addEventListener('DOMContentLoaded', () => {
+            loadBooks();
+            highlightCurrentNav();
+            
+            const bookSelect = document.getElementById('bookSelect');
+            const chapterSelect = document.getElementById('chapterSelect');
+            
+            bookSelect.addEventListener('change', (e) => {
+                const bookId = e.target.value;
+                const container = document.getElementById('chaptersListContainer');
+                const loading = document.getElementById('chaptersLoading');
+                
+                if (bookId) {
+                    loadChapters(bookId);
+                } else {
+                    chapterSelect.innerHTML = '<option value="">请先选择书籍</option>';
+                    chapterSelect.disabled = true;
+                    selectedBook = null;
+                    selectedChapter = null;
+                    chapters = [];
+                    
+                    // 隐藏章节列表区域
+                    if (container) {
+                        container.style.display = 'none';
+                    }
+                    if (loading) {
+                        loading.style.display = 'none';
+                    }
+                }
+            });
+
+            chapterSelect.addEventListener('change', (e) => {
+                const chapterId = e.target.value;
+                if (chapterId && chapters.length > 0) {
+                    selectedChapter = chapters.find((ch) => ch.id === parseInt(chapterId));
+                    // 更新章节列表中的选中状态
+                    document.querySelectorAll('.chapter-item').forEach(item => {
+                        item.classList.remove('selected');
+                        if (item.dataset.chapterId == chapterId) {
+                            item.classList.add('selected');
+                            // 滚动到选中的章节
+                            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    });
+                } else {
+                    selectedChapter = null;
+                    // 移除所有选中状态
+                    document.querySelectorAll('.chapter-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

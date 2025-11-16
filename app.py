@@ -9,6 +9,7 @@ import os
 import re
 import string
 import sys
+import tempfile
 import textwrap
 import time
 import unicodedata
@@ -943,11 +944,28 @@ def create_app() -> Flask:
             "chapter_fulltext": chapter_fulltext,
         }, ensure_ascii=False, indent=2)
         
-        # 组合用户提供的提示词部分
+        # 组合用户提供的提示词部分，并替换占位符
         intro_prompt = prompt_parts.get("intro_prompt", "").strip()
         body_prompt = prompt_parts.get("body_prompt", "").strip()
         quiz_prompt = prompt_parts.get("quiz_prompt", "").strip()
         question_prompt = prompt_parts.get("question_prompt", "").strip()
+        
+        # 替换占位符
+        placeholders = {
+            "{chapter_fulltext}": chapter_fulltext,
+            "{chapter_summary}": chapter_summary,
+            "{chapter_title}": payload.get("chapterTitle", ""),
+        }
+        
+        for placeholder, value in placeholders.items():
+            if placeholder in body_prompt:
+                body_prompt = body_prompt.replace(placeholder, value)
+            if placeholder in intro_prompt:
+                intro_prompt = intro_prompt.replace(placeholder, value)
+            if placeholder in quiz_prompt:
+                quiz_prompt = quiz_prompt.replace(placeholder, value)
+            if placeholder in question_prompt:
+                question_prompt = question_prompt.replace(placeholder, value)
         
         # 组合完整的提示词
         combined_prompt = ""
@@ -970,10 +988,9 @@ def create_app() -> Flask:
             {input_data_json}
 
             【输出要求】
-            1. **必须先展示详细的思考过程**（使用 <thinking>...</thinking> 标签包裹），然后再输出JSON
-            2. 最终输出必须是有效的 JSON 格式，不要有任何额外的说明文字、前缀或后缀
-            3. 不要使用 markdown 代码块标记（如 ```json 或 ```）
-            4. 输出的第一个字符必须是 {{，最后一个字符必须是 }}
+            1. 直接输出有效的 JSON 格式，不要有任何额外的说明文字、前缀或后缀
+            2. 不要使用 markdown 代码块标记（如 ```json 或 ```）
+            3. 输出的第一个字符必须是 {{，最后一个字符必须是 }}
 
             【输出格式】
             必须是一个有效的 JSON 对象，包含以下字段：
@@ -1272,18 +1289,8 @@ def create_app() -> Flask:
         # 豆包深度思考模型（根据官方示例，使用 doubao-seed-1-6-251015）
         model = "doubao-seed-1-6-251015"
         
+        # 构建用户提示词（参考豆包示例，不使用系统消息，让模型自然深度思考）
         prompt = build_generation_prompt(prompt_parts, payload)
-
-        # 构建系统消息，只要求JSON格式和思考过程，不添加任何长度限制
-        system_message = """你是一个专业的JSON格式输出助手，使用深度思考模式。
-
-【关键要求】
-- **重要**：你必须先展示你的详细思考过程（使用 <thinking>...</thinking> 标签包裹），然后再输出JSON
-- 思考过程应该详细、完整，包括如何理解需求、如何组织内容等
-- 最终输出必须是有效的JSON格式，不要有任何额外的说明文字、markdown标记或注释
-- JSON输出的第一个字符必须是 {，最后一个字符必须是 }
-- 不要使用 ```json 或 ``` 等markdown代码块标记
-- 严格按照用户提示词的要求生成内容"""
 
         # 从payload中读取参数，如果没有则使用默认值
         temperature = float(payload.get("temperature", 0.3))
@@ -1335,11 +1342,10 @@ def create_app() -> Flask:
                 
                 print(f"📤 发送请求: model={model} (模型会自动触发深度思考)", flush=True)
                 
-                # 构建API调用参数
+                # 构建API调用参数（参考豆包示例，不使用系统消息，直接传递用户提示词）
                 api_params = {
                     "model": model,
                     "messages": [
-                        {"role": "system", "content": system_message},
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": temperature,
@@ -1420,7 +1426,6 @@ def create_app() -> Flask:
                 request_payload = {
                     "model": model,
                     "messages": [
-                        {"role": "system", "content": system_message},
                         {"role": "user", "content": prompt},
                     ],
                     "stream": False,
@@ -1455,6 +1460,16 @@ def create_app() -> Flask:
 
                 message = data["choices"][0].get("message", {})
                 content_text = message.get("content", "").strip()
+                
+                # 检查是否有 reasoning_content（深度思考内容）
+                reasoning_content = message.get("reasoning_content")
+                if reasoning_content and isinstance(reasoning_content, str) and reasoning_content.strip():
+                    print(f"✅ 检测到 reasoning_content（深度思考内容，长度: {len(reasoning_content)} 字符）", flush=True)
+                    # 将 reasoning_content 添加到 content_text 前面，用标签包裹，这样后续的 _extract_thinking_and_json 可以提取
+                    content_text = f"<thinking>\n{reasoning_content}\n</thinking>\n\n{content_text}"
+                else:
+                    print(f"⚠️ 未找到 reasoning_content 字段", flush=True)
+                    print(f"📋 message 的键: {list(message.keys())}", flush=True)
             
             # 处理content可能是数组格式的情况
             if isinstance(content_text, list):
@@ -1762,6 +1777,133 @@ def create_app() -> Flask:
         """深度思考模型测试页面"""
         return send_from_directory(".", "test_thinking.html")
 
+    @app.route("/test_doubao_thinking.html")
+    def test_doubao_thinking_page():
+        """豆包深度思考能力纯测试页面"""
+        return send_from_directory(".", "test_doubao_thinking.html")
+
+    @app.post("/api/test/doubao-thinking")
+    def test_doubao_thinking_endpoint():
+        """纯测试接口：直接调用豆包深度思考模型，无额外逻辑"""
+        payload = request.get_json() or {}
+        prompt = payload.get("prompt", "")
+        if not prompt:
+            return jsonify({"error": "缺少 prompt 字段"}), 400
+
+        api_key = os.environ.get("DOUBAO_API_KEY") or os.environ.get("ARK_API_KEY") or load_setting("doubao_api_key", "") or load_setting("ark_api_key", "")
+        if not api_key:
+            return jsonify({"error": "缺少 DOUBAO_API_KEY 或 ARK_API_KEY"}), 400
+
+        model = payload.get("model", "doubao-seed-1-6-251015")
+        temperature = float(payload.get("temperature", 0.3))
+        max_tokens = int(payload.get("max_tokens", 16000))
+
+        try:
+            # 参考豆包官方示例代码，直接调用，不添加任何额外逻辑
+            if ARK_SDK_AVAILABLE:
+                base_url = "https://ark.cn-beijing.volces.com/api/v3"
+                configured_base = (
+                    os.environ.get("DOUBAO_API_BASE")
+                    or load_setting("doubao_api_base", "")
+                ).strip()
+
+                if configured_base:
+                    configured_base = configured_base.rstrip("/")
+                    if configured_base.endswith("/api/v3"):
+                        base_url = configured_base
+                    elif configured_base.endswith("/api/v3/chat/completions"):
+                        base_url = configured_base.replace("/chat/completions", "")
+                    elif "/api/v3" not in configured_base:
+                        base_url = f"{configured_base}/api/v3"
+                    else:
+                        base_url = configured_base
+
+                client = Ark(
+                    base_url=base_url,
+                    api_key=api_key,
+                    timeout=1800,
+                )
+
+                # 严格按照官方示例代码调用
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+
+                # 提取结果
+                choice = completion.choices[0]
+                message = choice.message
+                content = message.content or ""
+
+                # 检查是否有 reasoning_content（思维链）
+                reasoning_content = None
+                if hasattr(message, 'reasoning_content') and message.reasoning_content:
+                    reasoning_content = message.reasoning_content
+
+                return jsonify({
+                    "reasoning_content": reasoning_content,
+                    "content": content,
+                })
+
+            else:
+                # 降级使用 requests 方式
+                endpoint = "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+                configured_base = (
+                    os.environ.get("DOUBAO_API_BASE")
+                    or load_setting("doubao_api_base", "")
+                ).strip()
+
+                if configured_base:
+                    configured_base = configured_base.rstrip("/")
+                    if configured_base.endswith("/chat/completions"):
+                        endpoint = configured_base
+                    else:
+                        endpoint = f"{configured_base}/chat/completions"
+
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                }
+
+                request_payload = {
+                    "model": model,
+                    "messages": [
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+
+                response = requests.post(
+                    endpoint,
+                    headers=headers,
+                    json=request_payload,
+                    timeout=1800,
+                )
+
+                response.raise_for_status()
+                data = response.json()
+
+                if "choices" not in data or not data["choices"]:
+                    return jsonify({"error": "豆包接口未返回任何结果"}), 500
+
+                message = data["choices"][0].get("message", {})
+                content = message.get("content", "").strip()
+                reasoning_content = message.get("reasoning_content")
+
+                return jsonify({
+                    "reasoning_content": reasoning_content,
+                    "content": content,
+                })
+
+        except Exception as exc:
+            print(f"❌ 调用豆包深度思考模型失败: {exc}", flush=True)
+            return jsonify({"error": f"调用失败: {str(exc)}"}), 500
+
     @app.route("/parser_test_page.html")
     def serve_parser_page():
         return send_from_directory(app.static_folder, "parser_test_page.html")
@@ -1777,6 +1919,12 @@ def create_app() -> Flask:
     @app.route("/admin_books.html")
     def serve_admin_books_page():
         return send_from_directory(app.static_folder, "admin_books.html")
+
+    @app.route("/")
+    @app.route("/index.html")
+    def serve_index_page():
+        """首页"""
+        return send_from_directory(".", "index.html")
 
     def clean_toc_only(upload: io.BytesIO) -> Dict[str, Any]:
         """仅清洗目录，返回清洗前后的目录对比"""
@@ -2419,7 +2567,18 @@ def create_app() -> Flask:
         
         # 如果直接解析失败或条目太少，回退到ebooklib方法
         print(f"直接解析结果不足（{len(direct_toc) if direct_toc else 0}个条目），回退到ebooklib方法", flush=True)
-        book = epub.read_epub(io.BytesIO(epub_bytes))
+        # epub.read_epub() 在某些操作中需要文件路径，所以使用临时文件
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.epub') as tmp_file:
+            tmp_file.write(epub_bytes)
+            tmp_file_path = tmp_file.name
+        try:
+            book = epub.read_epub(tmp_file_path)
+        finally:
+            # 确保临时文件被删除
+            try:
+                os.unlink(tmp_file_path)
+            except OSError:
+                pass
 
         def normalize_title(raw: Any) -> str:
             if raw is None:
@@ -2927,7 +3086,18 @@ def create_app() -> Flask:
         """基于清洗后的EPUB目录提取内容和统计"""
         upload.seek(0)
         epub_bytes = upload.read()
-        book = epub.read_epub(io.BytesIO(epub_bytes))
+        # epub.read_epub() 在某些操作中需要文件路径，所以使用临时文件
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.epub') as tmp_file:
+            tmp_file.write(epub_bytes)
+            tmp_file_path = tmp_file.name
+        try:
+            book = epub.read_epub(tmp_file_path)
+        finally:
+            # 确保临时文件被删除
+            try:
+                os.unlink(tmp_file_path)
+            except OSError:
+                pass
 
         # 创建章节ID到内容的映射（按spine顺序）
         spine_items = list(book.spine)
@@ -5780,6 +5950,450 @@ D. ……
         if "index" in payload:
             response_payload["index"] = payload["index"]
         return jsonify(response_payload)
+
+    def calculate_word_count(text: str) -> int:
+        """计算字数（去除所有空格）"""
+        if not text:
+            return 0
+        normalized = "".join(ch for ch in text if not ch.isspace())
+        return len(normalized)
+
+    def split_into_sentences(text: str) -> List[str]:
+        """将文本分割成句子"""
+        if not text:
+            return []
+        # 使用正则表达式分割句子（句号、问号、感叹号等）
+        # 保留分隔符
+        import re
+        sentence_endings = re.compile(r'([。！？.!?；;]+\s*)')
+        parts = sentence_endings.split(text)
+        sentences = []
+        current = ""
+        for part in parts:
+            if sentence_endings.match(part):
+                current += part
+                if current.strip():
+                    sentences.append(current.strip())
+                current = ""
+            else:
+                current += part
+        if current.strip():
+            sentences.append(current.strip())
+        return [s for s in sentences if s]
+
+    def calculate_sentence_similarity(sent1: str, sent2: str) -> float:
+        """计算两个句子的相似度（使用词重叠方法）"""
+        if not sent1 or not sent2:
+            return 0.0
+        
+        # 归一化：转小写、去除标点
+        def normalize_text(text: str) -> set:
+            # 保留中文字符、数字、字母
+            normalized = re.sub(r'[^\u4e00-\u9fff\w\s]', '', text.lower())
+            # 分词：中文字符逐个，英文单词按空格
+            words = set()
+            for char in normalized:
+                if '\u4e00' <= char <= '\u9fff':
+                    words.add(char)
+            # 英文单词
+            for word in normalized.split():
+                if word:
+                    words.add(word)
+            return words
+        
+        words1 = normalize_text(sent1)
+        words2 = normalize_text(sent2)
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+        
+        if union == 0:
+            return 0.0
+        
+        return intersection / union  # Jaccard相似度
+
+    def semantic_segmentation(text: str, similarity_threshold: float = 0.3) -> List[str]:
+        """使用TextTiling风格的语义分割，将文本分割成语义片段"""
+        sentences = split_into_sentences(text)
+        if len(sentences) <= 1:
+            return [text] if text else []
+        
+        # 计算相邻句子之间的相似度
+        similarities = []
+        for i in range(len(sentences) - 1):
+            sim = calculate_sentence_similarity(sentences[i], sentences[i + 1])
+            similarities.append(sim)
+        
+        if not similarities:
+            return [text]
+        
+        # 找到分割点：相似度低于阈值的地方，或相似度明显下降的地方
+        # 使用滑动窗口检测相似度下降
+        window_size = min(3, len(similarities))
+        if window_size < 2:
+            return [text]
+        
+        # 计算局部平均相似度
+        local_means = []
+        for i in range(len(similarities)):
+            start = max(0, i - window_size // 2)
+            end = min(len(similarities), i + window_size // 2 + 1)
+            local_mean = sum(similarities[start:end]) / (end - start)
+            local_means.append(local_mean)
+        
+        # 找到相似度低谷（分割点）
+        split_points = []
+        for i in range(1, len(local_means) - 1):
+            # 如果当前位置的相似度明显低于前后，则可能是分割点
+            if (local_means[i] < similarity_threshold or 
+                (local_means[i] < local_means[i-1] * 0.7 and 
+                 local_means[i] < local_means[i+1] * 0.7)):
+                split_points.append(i + 1)  # 在i和i+1之间分割
+        
+        # 如果没有找到明显的分割点，尝试更宽松的策略
+        if not split_points:
+            # 找到相似度最低的几个点
+            sorted_indices = sorted(range(len(similarities)), 
+                                   key=lambda i: similarities[i])
+            # 取相似度最低的20%作为候选分割点
+            num_splits = max(1, len(similarities) // 10)
+            split_points = sorted([idx + 1 for idx in sorted_indices[:num_splits]])
+        
+        # 去除相邻太近的分割点（至少间隔2个句子）
+        if split_points:
+            filtered_splits = [split_points[0]]
+            for split in split_points[1:]:
+                if split - filtered_splits[-1] >= 2:
+                    filtered_splits.append(split)
+            split_points = filtered_splits
+        
+        # 根据分割点组合句子
+        segments = []
+        start_idx = 0
+        for split_idx in split_points:
+            segment = "".join(sentences[start_idx:split_idx])
+            if segment.strip():
+                segments.append(segment.strip())
+            start_idx = split_idx
+        # 添加最后一段
+        if start_idx < len(sentences):
+            segment = "".join(sentences[start_idx:])
+            if segment.strip():
+                segments.append(segment.strip())
+        
+        return segments if segments else [text]
+
+    def pack_segments_by_word_count(segments: List[str], max_word_count: int) -> List[str]:
+        """在语义片段基础上，按字数限制重新打包"""
+        if not segments:
+            return []
+        
+        packed = []
+        current_chunk = ""
+        current_count = 0
+        
+        for segment in segments:
+            seg_count = calculate_word_count(segment)
+            
+            # 如果单个片段就超过限制，需要进一步分割
+            if seg_count > max_word_count:
+                # 先将当前chunk保存
+                if current_chunk:
+                    packed.append(current_chunk)
+                    current_chunk = ""
+                    current_count = 0
+                
+                # 对超长片段进行递归分割（按段落或句子）
+                # 简单策略：按段落分割
+                paragraphs = segment.split("\n\n")
+                for para in paragraphs:
+                    para_count = calculate_word_count(para)
+                    if para_count > max_word_count:
+                        # 段落还是太长，按句子分割
+                        sentences = split_into_sentences(para)
+                        for sent in sentences:
+                            sent_count = calculate_word_count(sent)
+                            if current_count + sent_count > max_word_count and current_chunk:
+                                packed.append(current_chunk)
+                                current_chunk = sent
+                                current_count = sent_count
+                            else:
+                                current_chunk += sent
+                                current_count += sent_count
+                    else:
+                        # 段落可以加入当前chunk
+                        if current_count + para_count > max_word_count and current_chunk:
+                            packed.append(current_chunk)
+                            current_chunk = para
+                            current_count = para_count
+                        else:
+                            if current_chunk:
+                                current_chunk += "\n\n" + para
+                            else:
+                                current_chunk = para
+                            current_count += para_count
+            else:
+                # 片段可以加入当前chunk
+                if current_count + seg_count > max_word_count and current_chunk:
+                    # 当前chunk已满，保存并开始新的
+                    packed.append(current_chunk)
+                    current_chunk = segment
+                    current_count = seg_count
+                else:
+                    # 加入当前chunk
+                    if current_chunk:
+                        current_chunk += "\n\n" + segment
+                    else:
+                        current_chunk = segment
+                    current_count += seg_count
+        
+        # 添加最后的chunk
+        if current_chunk:
+            packed.append(current_chunk)
+        
+        return packed
+
+    def split_article_into_segments(
+        title: str,
+        content: str,
+        max_word_count: int = 10000,
+        api_key: Optional[str] = None,
+        similarity_threshold: float = 0.3
+    ) -> List[Dict[str, Any]]:
+        """
+        将文章分割成多个段落，每个段落不超过指定字数，并为每个段落生成标题
+        
+        输入参数：
+        - title: str - 原文章标题
+        - content: str - 原文章内容
+        - max_word_count: int - 每个段落的最大字数限制（去除空格后，默认10000）
+        - api_key: Optional[str] - 用于生成标题的API密钥（如果为None，会尝试从环境变量获取）
+        - similarity_threshold: float - 语义分割的相似度阈值（默认0.3）
+        
+        输出：
+        List[Dict[str, Any]] - 分割后的段落列表，每个字典包含：
+            - "title": str - 生成的段落标题
+            - "content": str - 段落内容
+            - "word_count": int - 段落的字数（去除空格后）
+        
+        示例：
+        >>> segments = split_article_into_segments(
+        ...     title="如何学习编程",
+        ...     content="编程是一门艺术...",
+        ...     max_word_count=300
+        ... )
+        >>> for seg in segments:
+        ...     print(f"{seg['title']}: {seg['word_count']}字")
+        """
+        if not content or not content.strip():
+            return []
+        
+        if not api_key:
+            api_key = os.environ.get("DOUBAO_API_KEY") or load_setting("doubao_api_key", "")
+            if not api_key:
+                raise ValueError("缺少 DOUBAO_API_KEY，无法生成标题")
+        
+        actual_word_count = calculate_word_count(content)
+        
+        # 如果文章字数不超过限制，直接返回（使用原标题）
+        if actual_word_count <= max_word_count:
+            return [{
+                "title": title,
+                "content": content,
+                "word_count": actual_word_count
+            }]
+        
+        # 第一步：使用语义分割技术切分成话题片段
+        print(f"开始语义分割：文章长度 {actual_word_count} 字，最大限制 {max_word_count} 字", flush=True)
+        semantic_segments = semantic_segmentation(content, similarity_threshold=similarity_threshold)
+        print(f"语义分割完成：共 {len(semantic_segments)} 个话题片段", flush=True)
+        
+        # 第二步：在话题片段基础上，按字数限制重新打包
+        packed_chunks = pack_segments_by_word_count(semantic_segments, max_word_count)
+        print(f"打包完成：共 {len(packed_chunks)} 个打包块", flush=True)
+        
+        # 验证每个chunk的字数
+        for idx, chunk in enumerate(packed_chunks):
+            chunk_word_count = calculate_word_count(chunk)
+            if chunk_word_count > max_word_count:
+                print(f"警告：第 {idx+1} 个打包块超过限制 ({chunk_word_count} > {max_word_count})", flush=True)
+        
+        # 第三步：对每个打包后的chunk调用大模型生成标题
+        segments = []
+        for idx, chunk in enumerate(packed_chunks):
+            chunk_word_count = calculate_word_count(chunk)
+            
+            # 生成标题的提示词
+            title_prompt = f"""请为以下文本片段生成一个简洁、准确的标题。
+
+要求：
+1. 标题要能准确概括这段文字的核心内容
+2. 标题要简洁明了，一般不超过20字
+3. 不要使用"第X部分"、"原标题"这类形式化表述
+4. 直接输出标题，不要添加任何说明文字
+
+文本内容：
+{chunk}
+
+标题："""
+            
+            try:
+                import requests
+                base_url = "https://ark.cn-beijing.volces.com/api/v3"
+                endpoint = f"{base_url}/chat/completions"
+                
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                }
+                
+                request_payload = {
+                    "model": "doubao-seed-1-6-flash-250828",  # 使用更快的flash模型生成标题
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "你是一个专业的标题生成助手。请根据文本内容生成简洁准确的标题，直接输出标题文字，不要添加任何说明。"
+                        },
+                        {
+                            "role": "user",
+                            "content": title_prompt
+                        }
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": 200,  # 标题不需要太多token
+                }
+                
+                response = requests.post(endpoint, headers=headers, json=request_payload, timeout=300)
+                response.raise_for_status()
+                data = response.json()
+                
+                if "choices" not in data or not data["choices"]:
+                    raise RuntimeError("API未返回结果")
+                
+                message = data["choices"][0].get("message", {})
+                generated_title = message.get("content", "").strip()
+                
+                # 清理标题（去除可能的引号、标点等）
+                generated_title = re.sub(r'^["\'「」【】\[\]()（）]*|["\'「」【】\[\]()（）]*$', '', generated_title).strip()
+                
+                if not generated_title:
+                    generated_title = f"{title} - 片段{idx+1}"
+                
+                segments.append({
+                    "title": generated_title,
+                    "content": chunk,
+                    "word_count": chunk_word_count
+                })
+                
+                print(f"第 {idx+1}/{len(packed_chunks)} 个片段标题生成完成: {generated_title} ({chunk_word_count}字)", flush=True)
+                
+            except Exception as exc:
+                print(f"生成标题失败 (片段{idx+1}): {exc}", flush=True)
+                # 标题生成失败时使用默认标题
+                segments.append({
+                    "title": f"{title} - 片段{idx+1}",
+                    "content": chunk,
+                    "word_count": chunk_word_count
+                })
+        
+        return segments if segments else [{"title": title, "content": content, "word_count": actual_word_count}]
+
+    @app.post("/api/restructure/split-article")
+    def split_article_endpoint():
+        """
+        标准文章分割接口
+        
+        输入：
+        - text: str - 要分割的文本内容（必需）
+        - max_length: int - 每段的最大字数限制（必需，去除空格后的字符数）
+        - title: str - 原文章标题（可选，如果不提供会使用默认标题）
+        
+        输出：
+        - segments: List[Dict] - 分割后的段落列表，每个字典包含：
+            - "title": str - 生成的段落标题
+            - "content": str - 段落内容
+            - "word_count": int - 段落的字数（去除空格后）
+        """
+        payload = request.get_json() or {}
+        text = payload.get("text", "").strip()
+        max_length = payload.get("max_length")
+        title = payload.get("title", "").strip() or "未命名文章"
+
+        if not text:
+            return jsonify({"error": "缺少 text 字段（文本内容）"}), 400
+        
+        if max_length is None:
+            return jsonify({"error": "缺少 max_length 字段（分段长度）"}), 400
+        
+        try:
+            max_word_count = int(max_length)
+            if max_word_count <= 0:
+                return jsonify({"error": "max_length 必须大于 0"}), 400
+        except (TypeError, ValueError):
+            return jsonify({"error": "max_length 必须是有效的整数"}), 400
+
+        api_key = os.environ.get("DOUBAO_API_KEY") or load_setting("doubao_api_key", "")
+        if not api_key:
+            return jsonify({"error": "缺少 DOUBAO_API_KEY"}), 400
+
+        try:
+            # 调用封装的函数进行文章分割
+            segments = split_article_into_segments(
+                title=title,
+                content=text,
+                max_word_count=max_word_count,
+                api_key=api_key
+            )
+            
+            if not segments:
+                return jsonify({"error": "分割失败，无法生成有效片段"}), 500
+
+            return jsonify({"segments": segments})
+            
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception as exc:
+            print(f"分割文章出错: {exc}", flush=True)
+            return jsonify({"error": f"分割失败: {str(exc)}"}), 500
+
+    @app.post("/api/restructure/split-chapter")
+    def split_chapter_endpoint():
+        """分割超过1万字的章节（兼容旧接口）"""
+        payload = request.get_json() or {}
+        title = payload.get("title", "").strip()
+        content = payload.get("content", "").strip()
+        max_word_count = int(payload.get("max_word_count", 10000))
+        word_count = int(payload.get("word_count", 0))
+
+        if not title or not content:
+            return jsonify({"error": "缺少标题或内容"}), 400
+
+        api_key = os.environ.get("DOUBAO_API_KEY") or load_setting("doubao_api_key", "")
+        if not api_key:
+            return jsonify({"error": "缺少 DOUBAO_API_KEY"}), 400
+
+        try:
+            # 调用封装的函数进行文章分割
+            segments = split_article_into_segments(
+                title=title,
+                content=content,
+                max_word_count=max_word_count,
+                api_key=api_key
+            )
+            
+            if not segments:
+                return jsonify({"error": "分割失败，无法生成有效片段"}), 500
+
+            return jsonify({"segments": segments})
+            
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception as exc:
+            print(f"分割章节出错: {exc}", flush=True)
+            return jsonify({"error": f"分割失败: {str(exc)}"}), 500
 
     return app
 

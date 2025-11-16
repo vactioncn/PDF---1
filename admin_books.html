@@ -12,6 +12,66 @@
         color: #0f172a;
       }
 
+      /* 导航栏样式 */
+      .top-navbar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 12px 20px;
+        margin: -24px -24px 24px -24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+      }
+
+      .nav-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .nav-brand {
+        color: white;
+        font-weight: 600;
+        font-size: 18px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .nav-brand:hover {
+        opacity: 0.9;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .nav-link {
+        color: white;
+        text-decoration: none;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+
+      .nav-link:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .nav-link.active {
+        background: rgba(255, 255, 255, 0.25);
+        font-weight: 500;
+      }
+
       body {
         margin: 0;
         padding: 24px;
@@ -405,6 +465,22 @@
     </style>
   </head>
   <body>
+    <!-- 导航栏 -->
+    <nav class="top-navbar">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">📚 PDF解读系统</a>
+        <div class="nav-links">
+          <a href="/" class="nav-link">🏠 首页</a>
+          <a href="/aigen_test_page.html" class="nav-link">✨ 个性化解读</a>
+          <a href="/test_doubao_thinking.html" class="nav-link">🧠 深度思考测试</a>
+          <a href="/test_thinking.html" class="nav-link">🔬 思考模型测试</a>
+          <a href="/parser_test_page.html" class="nav-link">📄 文档解析</a>
+          <a href="/admin_books.html" class="nav-link">📖 书籍管理</a>
+          <a href="/admin.html" class="nav-link">⚙️ 系统管理</a>
+        </div>
+      </div>
+    </nav>
+
     <h1>📚 后台管理 - 书籍数据管理</h1>
     <p class="subtitle">管理已入库的书籍，查看详情和章节数据</p>
 
@@ -844,8 +920,28 @@
         return div.innerHTML;
       }
 
+      // 自动高亮当前页面的导航链接
+      function highlightCurrentNav() {
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(link => {
+          const href = link.getAttribute('href');
+          if (href === currentPath || 
+              (currentPath === '/' && href === '/') ||
+              (currentPath !== '/' && currentPath.endsWith(href)) ||
+              (href !== '/' && currentPath.includes(href.replace('/', '')))) {
+            link.classList.add('active');
+          } else {
+            link.classList.remove('active');
+          }
+        });
+      }
+
       // 初始加载
       loadBooks();
+      // 页面加载时自动高亮当前页面
+      document.addEventListener('DOMContentLoaded', () => {
+        highlightCurrentNav();
+      });
     </script>
   </body>
 </html>

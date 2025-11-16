@@ -11,6 +11,66 @@
             box-sizing: border-box;
         }
 
+        /* 导航栏样式 */
+        .top-navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px 20px;
+            margin: -20px -20px 20px -20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-brand {
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-brand:hover {
+            opacity: 0.9;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.25);
+            font-weight: 500;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -227,6 +287,22 @@
     </style>
 </head>
 <body>
+    <!-- 导航栏 -->
+    <nav class="top-navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">📚 PDF解读系统</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 首页</a>
+                <a href="/aigen_test_page.html" class="nav-link">✨ 个性化解读</a>
+                <a href="/test_doubao_thinking.html" class="nav-link">🧠 深度思考测试</a>
+                <a href="/test_thinking.html" class="nav-link">🔬 思考模型测试</a>
+                <a href="/parser_test_page.html" class="nav-link">📄 文档解析</a>
+                <a href="/admin_books.html" class="nav-link">📖 书籍管理</a>
+                <a href="/admin.html" class="nav-link">⚙️ 系统管理</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
         <div class="header">
             <h1>🧠 深度思考模型测试页面</h1>
@@ -289,7 +365,7 @@
     </div>
 
     <script>
-        const API_BASE = window.location.origin; // 使用当前页面的域名和端口
+        const API_BASE = 'http://localhost:5001'; // Flask 服务器地址
 
         async function testThinking() {
             const testButton = document.getElementById('testButton');
@@ -381,9 +457,22 @@
                     thinkingContent.textContent = data.result._thinking_process;
                     console.log('✅ 找到思考过程，长度:', data.result._thinking_process.length);
                 } else {
-                    thinkingContent.textContent = '❌ 未找到思考过程 (_thinking_process 字段不存在)';
+                    let errorMsg = '❌ 未找到思考过程 (_thinking_process 字段不存在)\n\n';
+                    if (data.result) {
+                        errorMsg += '结果对象的所有键: ' + Object.keys(data.result).join(', ') + '\n\n';
+                        if (data.result._debug_info) {
+                            errorMsg += '调试信息:\n';
+                            errorMsg += '- 模型: ' + (data.result._debug_info.model || 'N/A') + '\n';
+                            errorMsg += '- 方法: ' + (data.result._debug_info.method || 'N/A') + '\n';
+                            errorMsg += '- Thinking: ' + (typeof data.result._debug_info.thinking === 'object' ? JSON.stringify(data.result._debug_info.thinking) : data.result._debug_info.thinking || 'N/A') + '\n';
+                        }
+                        errorMsg += '\n提示：请检查后端日志，确认模型是否返回了 reasoning_content。';
+                    } else {
+                        errorMsg += '结果对象为空';
+                    }
+                    thinkingContent.textContent = errorMsg;
                     console.log('❌ 未找到思考过程');
-                    console.log('结果对象的所有键:', data.result ? Object.keys(data.result) : 'N/A');
+                    console.log('完整结果对象:', data.result);
                 }
 
                 // 显示最终回答（从JSON中提取）
@@ -440,6 +529,27 @@
             document.getElementById('thinkingContent').textContent = '等待测试结果...';
             document.getElementById('answerContent').textContent = '等待测试结果...';
         }
+
+        // 自动高亮当前页面的导航链接
+        function highlightCurrentNav() {
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href === currentPath || 
+                    (currentPath === '/' && href === '/') ||
+                    (currentPath !== '/' && currentPath.endsWith(href)) ||
+                    (href !== '/' && currentPath.includes(href.replace('/', '')))) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        // 页面加载时自动高亮当前页面
+        document.addEventListener('DOMContentLoaded', () => {
+            highlightCurrentNav();
+        });
     </script>
 </body>
 </html>

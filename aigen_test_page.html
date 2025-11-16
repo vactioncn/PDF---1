@@ -13,6 +13,66 @@
         color: #0f172a;
       }
 
+      /* 导航栏样式 */
+      .top-navbar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 12px 20px;
+        margin: -24px -24px 24px -24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+      }
+
+      .nav-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .nav-brand {
+        color: white;
+        font-weight: 600;
+        font-size: 18px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .nav-brand:hover {
+        opacity: 0.9;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .nav-link {
+        color: white;
+        text-decoration: none;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+
+      .nav-link:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .nav-link.active {
+        background: rgba(255, 255, 255, 0.25);
+        font-weight: 500;
+      }
+
       body {
         margin: 0;
         padding: 24px;
@@ -269,6 +329,17 @@
         cursor: not-allowed;
         transform: none;
       }
+      
+      #tocSummaryButton:disabled {
+        background: #94a3b8 !important;
+        color: white !important;
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+      
+      #tocSummaryButton:not(:disabled):hover {
+        background: #4f46e5 !important;
+      }
 
       button:hover:not(:disabled) {
         transform: translateY(-1px);
@@ -410,9 +481,33 @@
     </style>
   </head>
   <body>
+    <!-- 导航栏 -->
+    <nav class="top-navbar">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">📚 PDF解读系统</a>
+        <div class="nav-links">
+          <a href="/" class="nav-link">🏠 首页</a>
+          <a href="/aigen_test_page.html" class="nav-link">✨ 个性化解读</a>
+          <a href="/test_doubao_thinking.html" class="nav-link">🧠 深度思考测试</a>
+          <a href="/test_thinking.html" class="nav-link">🔬 思考模型测试</a>
+          <a href="/parser_test_page.html" class="nav-link">📄 文档解析</a>
+          <a href="/admin_books.html" class="nav-link">📖 书籍管理</a>
+          <a href="/admin.html" class="nav-link">⚙️ 系统管理</a>
+        </div>
+      </div>
+    </nav>
+
     <h1>📖 个性化解读生成测试台</h1>
     <p class="subtitle">选择书籍和章节，配置解读提示词和用户偏好，生成个性化解读内容</p>
 
+    <!-- TAB 切换按钮 -->
+    <div style="display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+      <button id="mainTabBtn" class="prompt-tab active" onclick="switchMainTab('main')" style="padding: 12px 24px; font-size: 16px; font-weight: 600;">✨ 个性化解读</button>
+      <button id="restructureTabBtn" class="prompt-tab" onclick="switchMainTab('restructure')" style="padding: 12px 24px; font-size: 16px; font-weight: 600;">📚 书籍重构</button>
+    </div>
+
+    <!-- 主内容区域：个性化解读 -->
+    <div id="mainTabContent">
     <section class="panel">
       <h2>📚 选择书籍和章节</h2>
       <div class="form-grid">
@@ -591,7 +686,10 @@
     <section class="panel">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <h2 style="margin: 0;">🚀 生成解读</h2>
-        <button id="generateButton" disabled>生成解读</button>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <button id="tocSummaryButton" class="secondary" disabled style="padding: 10px 20px; font-size: 14px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; white-space: nowrap;">📋 目录与摘要读取</button>
+          <button id="generateButton" disabled>生成解读</button>
+        </div>
       </div>
       <div class="status" id="generationStatus" style="display: none;"></div>
     </section>
@@ -617,6 +715,13 @@
 
     <section class="output-panel" id="outputSection" style="display: none;">
       <h2>📄 解读结果</h2>
+      <div id="tocSummaryResult" style="display: none; margin-bottom: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="margin: 0; color: #1e293b; font-size: 16px;">📋 目录与摘要</h3>
+          <button id="copyTocSummaryButton" class="secondary" style="padding: 6px 12px; font-size: 12px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;">📋 复制文本</button>
+        </div>
+        <textarea id="tocSummaryText" readonly style="width: 100%; min-height: 300px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; line-height: 1.6; background: #ffffff; resize: vertical;"></textarea>
+      </div>
       <div class="markdown-output" id="markdownOutput"></div>
       <div id="podcastSection" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 2px solid #e2e8f0;">
         <h3 style="margin-top: 0;">🎙️ 播客音频</h3>
@@ -632,6 +737,53 @@
         </div>
       </div>
     </section>
+    </div>
+    <!-- 主内容区域结束 -->
+
+    <!-- 书籍重构 TAB 内容 -->
+    <div id="restructureTabContent" style="display: none;">
+      <section class="panel">
+        <h2>📚 书籍重构</h2>
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">选择书籍，输入重构提示词，使用深度思考模型生成新的目录结构</p>
+        
+        <div class="form-grid" style="margin-bottom: 16px;">
+          <div class="form-group">
+            <label for="restructureBookSelect">选择书籍</label>
+            <select id="restructureBookSelect">
+              <option value="">请选择书籍...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="restructureMaxWords">分割字数上限（每段最大字数）</label>
+            <input type="number" id="restructureMaxWords" value="5000" min="1000" max="20000" step="500" style="width: 100%; padding: 8px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 14px;" />
+          </div>
+        </div>
+
+        <div class="form-group full-width" style="margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label for="restructurePrompt" style="margin: 0;">重构提示词</label>
+            <button id="restructureTocButton" class="secondary" disabled style="padding: 10px 20px; font-size: 14px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">🔄 重构目录</button>
+          </div>
+          <textarea id="restructurePrompt" rows="10" placeholder="输入重构提示词，例如：请根据原书籍的目录和摘要，重新设计一个更清晰的目录结构..."></textarea>
+        </div>
+
+        <div id="restructureResult" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="margin: 0; color: #1e293b; font-size: 16px;">📋 重构后的目录</h3>
+            <button id="generateNewBookButton" class="secondary" disabled style="padding: 8px 16px; font-size: 14px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">📖 新书生成</button>
+          </div>
+          <div id="restructureResultContent" style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0; max-height: 500px; overflow-y: auto;"></div>
+        </div>
+
+        <div id="newBookResult" style="display: none; margin-top: 16px; padding: 16px; background: #f0fdf4; border-radius: 8px; border: 1px solid #86efac;">
+          <h3 style="margin: 0 0 12px 0; color: #065f46; font-size: 16px;">✅ 新书生成完成</h3>
+          <div id="newBookResultContent" style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #86efac; max-height: 600px; overflow-y: auto;"></div>
+        </div>
+
+        <div class="status" id="restructureStatus" style="display: none; margin-top: 16px;"></div>
+      </section>
+    </div>
+    <!-- 书籍重构 TAB 内容结束 -->
 
     <script>
       const bookSelect = document.getElementById("bookSelect");
@@ -665,6 +817,216 @@
       let selectedBook = null;
       let selectedChapter = null;
       let currentInterpretationResult = null; // 存储当前的解读结果
+
+      /**
+       * 使用深度思考模型进行内容解读
+       * 
+       * 输出两部分：
+       * 1. reasoning_content: 思考过程 - 模型的推理和思考过程
+       * 2. content: 最终结果 - 思考后得出的最终答案
+       * 
+       * @param {string} content - 要解读的内容（如章节正文）
+       * @param {string} prompt - 解读提示词（可包含占位符如 {chapter_fulltext}）
+       * @param {Object} options - 可选参数
+       * @param {string} options.model - 模型名称，默认 'doubao-seed-1-6-251015'
+       * @param {number} options.temperature - 温度参数，默认 0.3
+       * @param {number} options.max_tokens - 最大token数，默认 16000
+       * @param {number} options.timeout - 超时时间（毫秒），默认 300000 (5分钟)
+       * @param {Object} options.replacements - 占位符替换对象，如 {chapter_fulltext: '...', chapter_title: '...'}
+       * @returns {Promise<Object>} 返回对象包含两部分：
+       *   - reasoning_content {string|null}: 第一部分 - 思考过程（模型的推理过程）
+       *   - content {string|null}: 第二部分 - 最终结果（思考后得出的答案）
+       *   - success {boolean}: 是否成功
+       * 
+       * @example
+       * const result = await interpretWithDeepThinking(
+       *   '这是要解读的章节内容...',
+       *   '请详细解读以下内容：\n{chapter_fulltext}',
+       *   { replacements: { chapter_fulltext: '这是要解读的章节内容...' } }
+       * );
+       * // 第一部分：思考过程
+       * console.log('思考过程:', result.reasoning_content);
+       * // 第二部分：最终结果
+       * console.log('最终结果:', result.content);
+       */
+      async function interpretWithDeepThinking(content, prompt, options = {}) {
+        const {
+          model = 'doubao-seed-1-6-251015',
+          temperature = 0.3,
+          max_tokens = 16000,
+          timeout = 300000,
+          replacements = {}
+        } = options;
+
+        // 构建完整的 prompt：替换占位符
+        let finalPrompt = prompt;
+        
+        // 确保 replacements 是一个对象
+        const safeReplacements = (replacements && typeof replacements === 'object' && !Array.isArray(replacements)) ? replacements : {};
+        
+        // 默认替换 {chapter_fulltext} 为内容
+        if (content && !safeReplacements.chapter_fulltext) {
+          safeReplacements.chapter_fulltext = content;
+        }
+        
+        // 执行所有占位符替换 - 参考 parser_test_page.html 的实现方式
+        if (safeReplacements && typeof safeReplacements === 'object' && !Array.isArray(safeReplacements)) {
+          // 使用 Object.keys 代替 Object.entries，避免 forEach 问题
+          const keys = Object.keys(safeReplacements);
+          for (let i = 0; i < keys.length; i++) {
+            const placeholder = keys[i];
+            const value = safeReplacements[placeholder];
+            if (value !== undefined && value !== null) {
+              const regex = new RegExp(`{${placeholder}}`, 'g');
+              finalPrompt = finalPrompt.replace(regex, String(value));
+            }
+          }
+        }
+
+        try {
+          // 创建 AbortController 用于超时控制 - 参考 parser_test_page.html
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
+          
+          // 调用深度思考接口
+          let response;
+          try {
+            response = await fetch("/api/test/doubao-thinking", {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+              },
+              body: JSON.stringify({
+                prompt: finalPrompt,
+                temperature: temperature,
+                max_tokens: max_tokens,
+                model: model,
+              }),
+              signal: controller.signal,
+            });
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === "AbortError") {
+              throw new Error("请求超时（超过5分钟），请稍后重试");
+            }
+            // 更详细的错误信息
+            const errorMsg = fetchError.message || String(fetchError);
+            if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+              throw new Error("无法连接到服务器，请检查：\n1. 服务器是否正在运行（端口5001）\n2. 网络连接是否正常\n3. 浏览器控制台是否有更多错误信息");
+            }
+            throw new Error(`网络请求失败: ${errorMsg}`);
+          }
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            let errorMessage = "生成失败";
+            try {
+              const errorText = await response.text();
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (e) {
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+
+          let data;
+          try {
+            data = await response.json();
+          } catch (jsonError) {
+            throw new Error(`服务器响应格式错误: ${jsonError.message}`);
+          }
+          
+          // 确保 data 是一个对象
+          if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            throw new Error('后端返回的数据格式不正确');
+          }
+          
+          // 返回结构化的结果：第一部分 - 思考过程，第二部分 - 最终结果
+          return {
+            reasoning_content: (data.reasoning_content && typeof data.reasoning_content === 'string') ? data.reasoning_content : null, // 第一部分：思考过程
+            content: (data.content && typeof data.content === 'string') ? data.content : null,                     // 第二部分：最终结果
+            success: true
+          };
+
+        } catch (error) {
+          // 统一错误处理
+          let errorMessage = "解读失败";
+          if (error.name === "AbortError" || error.name === "TimeoutError") {
+            errorMessage = "请求超时，请稍后重试";
+          } else if (error.message) {
+            errorMessage = error.message;
+          } else if (error instanceof TypeError && error.message.includes("fetch")) {
+            errorMessage = "网络请求失败，请检查服务器是否运行";
+          }
+          
+          throw new Error(errorMessage);
+        }
+      }
+
+      /**
+       * 渲染深度思考结果的两部分输出
+       * 
+       * 第一部分：思考过程 (reasoning_content)
+       * 第二部分：最终结果 (content)
+       * 
+       * @param {HTMLElement} container - 要渲染到的容器元素
+       * @param {Object} result - 深度思考结果对象
+       * @param {string|null} result.reasoning_content - 第一部分：思考过程
+       * @param {string|null} result.content - 第二部分：最终结果
+       */
+      function renderDeepThinkingResult(container, result) {
+        let resultHtml = `<h4 style='margin-top: 0; color: #1e293b;'>生成结果：</h4>`;
+        
+        // 第一部分：显示思考过程
+        if (result.reasoning_content) {
+          resultHtml += `<div style="margin-bottom: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6;">`;
+          resultHtml += `<h5 style="margin-top: 0; margin-bottom: 12px; color: #1e40af; font-size: 15px; font-weight: 600;">🧠 第一部分：深度思考过程</h5>`;
+          resultHtml += `<div style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; font-size: 14px; max-height: 400px; overflow-y: auto; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #bfdbfe;">${escapeHtml(result.reasoning_content)}</div>`;
+          resultHtml += `</div>`;
+        } else {
+          resultHtml += `<div style="margin-bottom: 16px; padding: 12px; background: #fef3c7; border-radius: 6px; border-left: 3px solid #f59e0b;">`;
+          resultHtml += `<p style="color: #92400e; margin: 0;">⚠️ 未获取到思考过程</p>`;
+          resultHtml += `</div>`;
+        }
+        
+        // 第二部分：显示最终结果
+        if (result.content) {
+          resultHtml += `<div style="padding: 16px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">`;
+          resultHtml += `<h5 style="margin-top: 0; margin-bottom: 12px; color: #065f46; font-size: 15px; font-weight: 600;">✅ 第二部分：最终结果</h5>`;
+          resultHtml += `<div style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; font-size: 14px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #86efac;">${escapeHtml(result.content)}</div>`;
+          resultHtml += `</div>`;
+        } else {
+          resultHtml += `<div style="padding: 12px; background: #fee2e2; border-radius: 6px; border-left: 3px solid #ef4444;">`;
+          resultHtml += `<p style="color: #991b1b; margin: 0;">❌ 未获取到最终结果</p>`;
+          resultHtml += `</div>`;
+        }
+        
+        container.innerHTML = resultHtml;
+      }
+
+      /**
+       * HTML转义函数，防止XSS攻击
+       * @param {string} text - 要转义的文本
+       * @returns {string} 转义后的HTML安全文本
+       */
+      function escapeHtml(text) {
+        // 确保输入是字符串类型
+        if (text === null || text === undefined) {
+          return '';
+        }
+        if (typeof text !== 'string') {
+          text = String(text);
+        }
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
 
       // 用户偏好配置 - 基于6个维度完整刻画用户画像
       const preferenceConfigs = {
@@ -740,6 +1102,48 @@
 
       function hideStatus(el) {
         el.style.display = "none";
+      }
+
+      // 切换主 TAB（个性化解读 / 书籍重构）
+      function switchMainTab(tabName) {
+        const mainTabContent = document.getElementById("mainTabContent");
+        const restructureTabContent = document.getElementById("restructureTabContent");
+        const mainTabBtn = document.getElementById("mainTabBtn");
+        const restructureTabBtn = document.getElementById("restructureTabBtn");
+
+        if (tabName === "main") {
+          if (mainTabContent) mainTabContent.style.display = "block";
+          if (restructureTabContent) restructureTabContent.style.display = "none";
+          if (mainTabBtn) {
+            mainTabBtn.classList.add("active");
+            mainTabBtn.style.borderBottomColor = "#2563eb";
+            mainTabBtn.style.color = "#2563eb";
+            mainTabBtn.style.fontWeight = "600";
+          }
+          if (restructureTabBtn) {
+            restructureTabBtn.classList.remove("active");
+            restructureTabBtn.style.borderBottomColor = "transparent";
+            restructureTabBtn.style.color = "#64748b";
+            restructureTabBtn.style.fontWeight = "500";
+          }
+        } else if (tabName === "restructure") {
+          if (mainTabContent) mainTabContent.style.display = "none";
+          if (restructureTabContent) restructureTabContent.style.display = "block";
+          if (restructureTabBtn) {
+            restructureTabBtn.classList.add("active");
+            restructureTabBtn.style.borderBottomColor = "#2563eb";
+            restructureTabBtn.style.color = "#2563eb";
+            restructureTabBtn.style.fontWeight = "600";
+          }
+          if (mainTabBtn) {
+            mainTabBtn.classList.remove("active");
+            mainTabBtn.style.borderBottomColor = "transparent";
+            mainTabBtn.style.color = "#64748b";
+            mainTabBtn.style.fontWeight = "500";
+          }
+          // 加载书籍列表到重构书籍选择器
+          loadBooksForRestructure();
+        }
       }
 
       // 切换提示词标签页
@@ -861,6 +1265,62 @@
           resultElement.innerHTML = "<p style='color: #64748b;'>正在生成...</p>";
         }
 
+        // 如果是正文部分，使用深度思考模型 interpretWithDeepThinking
+        if (part === "body") {
+          // ========== 输入部分：准备章节内容和提示词 ==========
+          const chapterTitle = selectedChapter.title_zh || selectedChapter.title;
+          const chapterContent = selectedChapter.content_zh || selectedChapter.content; // 输入：选择的章节内容
+          const chapterSummary = selectedChapter.summary || chapterTitle;
+          const prompt = partPrompt; // 输入：提示词（从 bodyPrompt 输入框获取）
+
+          try {
+            // ========== 调用深度思考函数：interpretWithDeepThinking ==========
+            // 输入参数：
+            //   - chapterContent: 选择的章节内容
+            //   - prompt: 提示词
+            //   - options: 占位符替换配置
+            // 输出：包含两部分的对象
+            //   - reasoning_content: 第一部分 - 思考过程
+            //   - content: 第二部分 - 最终结果（深度思考后的内容）
+            const result = await interpretWithDeepThinking(
+              chapterContent,  // 输入：章节内容
+              prompt,           // 输入：提示词
+              {
+                replacements: {
+                  chapter_fulltext: chapterContent,
+                  chapter_summary: chapterSummary,
+                  chapter_title: chapterTitle
+                }
+              }
+            );
+            
+            // ========== 输出部分：显示深度思考后的内容 ==========
+            // result.reasoning_content: 第一部分 - 思考过程
+            // result.content: 第二部分 - 最终结果（这是深度思考后的内容）
+            if (resultElement) {
+              renderDeepThinkingResult(resultElement, result);
+            }
+
+            renderStatus(promptStatus, "正文部分生成完成！（使用深度思考模型）", "success");
+          } catch (error) {
+            console.error("生成失败:", error);
+            const errorMessage = error.message || "生成失败";
+            
+            if (resultElement) {
+              resultElement.innerHTML = `<p style='color: #ef4444;'>${errorMessage}</p>`;
+            }
+            renderStatus(promptStatus, errorMessage, "error");
+          } finally {
+            // 恢复按钮
+            if (buttonElement) {
+              buttonElement.disabled = false;
+              buttonElement.textContent = "🚀 单独生成正文";
+            }
+          }
+          return; // 提前返回，不执行后面的代码
+        }
+
+        // 其他部分使用原来的接口
         const payload = {
           part: part,
           chapterTitle: selectedChapter.title_zh || selectedChapter.title,
@@ -976,6 +1436,38 @@
         }
       }
 
+      /**
+       * 生成目录与摘要文本
+       * 
+       * 输入：章节数组
+       * 输出：格式化的文本字符串（章节序号+章节标题+摘要）
+       * 
+       * @param {Array} entries - 章节数组，每个章节对象包含 title_zh, title, summary 等字段
+       * @returns {string} 生成的目录与摘要文本
+       */
+      function generateTocSummaryText(entries) {
+        if (!entries || entries.length === 0) {
+          return "";
+        }
+
+        let text = "";
+        for (let i = 0; i < entries.length; i++) {
+          const entry = entries[i];
+          const chapterNumber = i + 1;
+          const chapterTitle = entry.title_zh || entry.title || `第${chapterNumber}章`;
+          const chapterSummary = entry.summary || "";
+
+          // 格式：章节序号+章节标题+摘要
+          text += `${chapterNumber}. ${chapterTitle}`;
+          if (chapterSummary) {
+            text += `\n${chapterSummary}`;
+          }
+          text += "\n\n";
+        }
+
+        return text.trim();
+      }
+
       // 加载书籍列表
       async function loadBooks() {
         try {
@@ -1055,6 +1547,12 @@
         const hasChapter = chapterSelect.value && selectedChapter;
         const hasPreference = selectedPreference.value;
         generateButton.disabled = !(hasBook && hasChapter && hasPreference);
+        
+        // 更新目录与摘要读取按钮状态（只需要有书籍即可）
+        const tocSummaryButton = document.getElementById("tocSummaryButton");
+        if (tocSummaryButton) {
+          tocSummaryButton.disabled = !hasBook;
+        }
       }
 
       // 生成解读
@@ -1376,6 +1874,81 @@
         updateGenerateButton();
       });
 
+      // 目录与摘要读取功能
+      document.addEventListener("DOMContentLoaded", () => {
+        const tocSummaryButton = document.getElementById("tocSummaryButton");
+        const tocSummaryResult = document.getElementById("tocSummaryResult");
+        const tocSummaryText = document.getElementById("tocSummaryText");
+        const copyTocSummaryButton = document.getElementById("copyTocSummaryButton");
+
+        if (tocSummaryButton) {
+          tocSummaryButton.addEventListener("click", async () => {
+            if (!selectedBook || !chapters || chapters.length === 0) {
+              renderStatus(promptStatus, "请先选择书籍并加载章节", "error");
+              return;
+            }
+
+            tocSummaryButton.disabled = true;
+            tocSummaryButton.textContent = "读取中...";
+            tocSummaryButton.style.opacity = "0.6";
+            tocSummaryResult.style.display = "none";
+
+            try {
+              // 生成目录与摘要文本
+              let text = "";
+              for (let i = 0; i < chapters.length; i++) {
+                const chapter = chapters[i];
+                const chapterNumber = i + 1;
+                const chapterTitle = chapter.title_zh || chapter.title || `第${chapterNumber}章`;
+                const chapterSummary = chapter.summary || "";
+
+                // 格式：章节序号+章节标题+摘要
+                text += `${chapterNumber}. ${chapterTitle}`;
+                if (chapterSummary) {
+                  text += `\n${chapterSummary}`;
+                }
+                text += "\n\n";
+              }
+
+              // 显示结果
+              tocSummaryText.value = text.trim();
+              tocSummaryResult.style.display = "block";
+              // 确保解读结果区域显示
+              const outputSection = document.getElementById("outputSection");
+              if (outputSection) {
+                outputSection.style.display = "block";
+              }
+              renderStatus(promptStatus, `成功读取 ${chapters.length} 个章节的目录与摘要`, "success");
+            } catch (error) {
+              console.error("读取目录与摘要失败:", error);
+              renderStatus(promptStatus, `读取失败: ${error.message}`, "error");
+            } finally {
+              tocSummaryButton.disabled = false;
+              tocSummaryButton.textContent = "📋 目录与摘要读取";
+              tocSummaryButton.style.opacity = "1";
+            }
+          });
+        }
+
+        // 复制目录与摘要文本
+        if (copyTocSummaryButton) {
+          copyTocSummaryButton.addEventListener("click", () => {
+            if (tocSummaryText && tocSummaryText.value) {
+              tocSummaryText.select();
+              document.execCommand("copy");
+              renderStatus(promptStatus, "已复制到剪贴板", "success");
+              
+              // 显示临时提示
+              const originalText = copyTocSummaryButton.textContent;
+              copyTocSummaryButton.textContent = "✓ 已复制";
+              setTimeout(() => {
+                copyTocSummaryButton.textContent = originalText;
+              }, 2000);
+            }
+          });
+        }
+      });
+
       // 显示播客按钮
       function showPodcastButton() {
         podcastSection.style.display = "block";
@@ -1498,12 +2071,572 @@
         podcastConfig.style.display = e.target.checked ? "flex" : "none";
       });
       
+      // ========== 书籍重构功能 ==========
+      let restructureBook = null;
+      let restructureChapters = [];
+      let restructuredTocContent = null; // 存储重构后的目录内容
+      let newBookStructure = null; // 存储新书籍结构
+
+      // 为书籍重构加载书籍列表
+      async function loadBooksForRestructure() {
+        const restructureBookSelect = document.getElementById("restructureBookSelect");
+        if (!restructureBookSelect) return;
+
+        try {
+          const response = await fetch("/api/admin/books?page=1&per_page=100");
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          const booksList = data.books || [];
+          restructureBookSelect.innerHTML = '<option value="">请选择书籍...</option>';
+          booksList.forEach((book) => {
+            const option = document.createElement("option");
+            option.value = book.id;
+            option.textContent = `${book.filename} (${book.chapter_count}章)`;
+            restructureBookSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error("加载书籍失败:", error);
+          const restructureStatus = document.getElementById("restructureStatus");
+          if (restructureStatus) {
+            renderStatus(restructureStatus, `加载书籍失败: ${error.message}`, "error");
+          }
+        }
+      }
+
+      // 书籍选择变化事件
+      const restructureBookSelect = document.getElementById("restructureBookSelect");
+      if (restructureBookSelect) {
+        restructureBookSelect.addEventListener("change", async (e) => {
+          const bookId = e.target.value;
+          const restructureTocButton = document.getElementById("restructureTocButton");
+          const restructureStatus = document.getElementById("restructureStatus");
+          
+          if (bookId) {
+            try {
+              const response = await fetch(`/api/admin/books/${bookId}`);
+              const data = await response.json();
+              if (data.error) {
+                throw new Error(data.error);
+              }
+
+              restructureBook = data.book;
+              restructureChapters = data.chapters || [];
+              
+              // 启用重构目录按钮
+              if (restructureTocButton) {
+                restructureTocButton.disabled = false;
+              }
+              
+              if (restructureStatus) {
+                renderStatus(restructureStatus, `已加载书籍：${restructureBook.filename} (${restructureChapters.length}章)`, "success");
+              }
+            } catch (error) {
+              console.error("加载书籍章节失败:", error);
+              if (restructureStatus) {
+                renderStatus(restructureStatus, `加载失败: ${error.message}`, "error");
+              }
+            }
+          } else {
+            restructureBook = null;
+            restructureChapters = [];
+            if (restructureTocButton) {
+              restructureTocButton.disabled = true;
+            }
+          }
+        });
+      }
+
+      // 重构目录按钮点击事件
+      const restructureTocButton = document.getElementById("restructureTocButton");
+      if (restructureTocButton) {
+        restructureTocButton.addEventListener("click", async () => {
+          if (!restructureBook || !restructureChapters || restructureChapters.length === 0) {
+            const restructureStatus = document.getElementById("restructureStatus");
+            if (restructureStatus) {
+              renderStatus(restructureStatus, "请先选择书籍", "error");
+            }
+            return;
+          }
+
+          const restructurePrompt = document.getElementById("restructurePrompt");
+          if (!restructurePrompt || !restructurePrompt.value.trim()) {
+            const restructureStatus = document.getElementById("restructureStatus");
+            if (restructureStatus) {
+              renderStatus(restructureStatus, "请输入重构提示词", "error");
+            }
+            return;
+          }
+
+          // 禁用按钮
+          restructureTocButton.disabled = true;
+          restructureTocButton.textContent = "重构中...";
+          
+          const restructureResult = document.getElementById("restructureResult");
+          const restructureResultContent = document.getElementById("restructureResultContent");
+          const restructureStatus = document.getElementById("restructureStatus");
+          const generateNewBookButton = document.getElementById("generateNewBookButton");
+
+          if (restructureResult) {
+            restructureResult.style.display = "none";
+          }
+          if (restructureStatus) {
+            renderStatus(restructureStatus, "正在读取书籍目录与摘要...", "info");
+          }
+
+          try {
+            // 第一步：生成目录与摘要文本
+            const tocSummaryText = generateTocSummaryText(restructureChapters);
+            
+            if (restructureStatus) {
+              renderStatus(restructureStatus, "正在调用深度思考模型生成新目录...", "info");
+            }
+
+            // 第二步：构建完整的提示词（用户提示词 + 原目录与摘要）
+            const userPrompt = restructurePrompt.value.trim();
+            const fullPrompt = `${userPrompt}\n\n【原书籍目录与摘要】\n${tocSummaryText}`;
+
+            // 第三步：调用深度思考模型
+            const result = await interpretWithDeepThinking(
+              tocSummaryText,  // content
+              fullPrompt,       // prompt
+              {
+                replacements: {
+                  chapter_fulltext: tocSummaryText
+                }
+              }
+            );
+
+            // 保存重构后的目录内容
+            restructuredTocContent = result.content;
+
+            // 第四步：显示结果
+            if (restructureResultContent) {
+              // 显示思考过程和最终结果
+              let resultHtml = "";
+              
+              // 思考过程
+              if (result.reasoning_content) {
+                resultHtml += `<div style="margin-bottom: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6;">`;
+                resultHtml += `<h5 style="margin-top: 0; margin-bottom: 12px; color: #1e40af; font-size: 15px; font-weight: 600;">🧠 思考过程</h5>`;
+                resultHtml += `<div style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; font-size: 14px; max-height: 300px; overflow-y: auto; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #bfdbfe;">${escapeHtml(result.reasoning_content)}</div>`;
+                resultHtml += `</div>`;
+              }
+              
+              // 最终结果（重构后的目录）
+              if (result.content) {
+                resultHtml += `<div style="padding: 16px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">`;
+                resultHtml += `<h5 style="margin-top: 0; margin-bottom: 12px; color: #065f46; font-size: 15px; font-weight: 600;">✅ 重构后的目录</h5>`;
+                resultHtml += `<div style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; font-size: 14px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #86efac;">${escapeHtml(result.content)}</div>`;
+                resultHtml += `</div>`;
+              } else {
+                resultHtml += `<div style="padding: 12px; background: #fee2e2; border-radius: 6px; border-left: 3px solid #ef4444;">`;
+                resultHtml += `<p style="color: #991b1b; margin: 0;">❌ 未获取到重构结果</p>`;
+                resultHtml += `</div>`;
+              }
+              
+              restructureResultContent.innerHTML = resultHtml;
+            }
+
+            if (restructureResult) {
+              restructureResult.style.display = "block";
+            }
+            
+            // 启用新书生成按钮
+            if (generateNewBookButton && result.content) {
+              generateNewBookButton.disabled = false;
+            }
+            
+            if (restructureStatus) {
+              renderStatus(restructureStatus, "目录重构完成！可以点击【新书生成】按钮生成新书", "success");
+            }
+          } catch (error) {
+            console.error("重构目录失败:", error);
+            const errorMessage = error.message || "重构失败";
+            if (restructureStatus) {
+              renderStatus(restructureStatus, `重构失败: ${errorMessage}`, "error");
+            }
+            if (restructureResultContent) {
+              restructureResultContent.innerHTML = `<p style='color: #ef4444;'>${escapeHtml(errorMessage)}</p>`;
+            }
+            if (restructureResult) {
+              restructureResult.style.display = "block";
+            }
+          } finally {
+            // 恢复按钮
+            restructureTocButton.disabled = false;
+            restructureTocButton.textContent = "🔄 重构目录";
+          }
+        });
+      }
+
+      /**
+       * 解析新目录结构，提取PART1, PART2等章节信息
+       * @param {string} tocText - 重构后的目录文本
+       * @returns {Array} 章节数组，包含 {title: string, partNumber: number}
+       */
+      function parseNewTocStructure(tocText) {
+        if (!tocText) return [];
+        
+        const parts = [];
+        const lines = tocText.split('\n');
+        
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+          
+          // 匹配 PART1, PART 1, 第一部分, 第1部分, 1. 等格式
+          const partMatch = trimmedLine.match(/^(?:PART\s*)?(\d+)[\.、]?\s*(?:第\s*)?(?:一|二|三|四|五|六|七|八|九|十|\d+)?部分[：:：]?\s*(.+)$/i);
+          if (partMatch) {
+            const partNumber = parseInt(partMatch[1]);
+            const title = partMatch[2] || trimmedLine.replace(/^(?:PART\s*)?\d+[\.、]?\s*/, '');
+            parts.push({
+              partNumber: partNumber,
+              title: title.trim(),
+              originalText: trimmedLine
+            });
+            continue;
+          }
+          
+          // 匹配数字开头的章节
+          const numMatch = trimmedLine.match(/^(\d+)[\.、]\s*(.+)$/);
+          if (numMatch) {
+            const partNumber = parseInt(numMatch[1]);
+            const title = numMatch[2].trim();
+            parts.push({
+              partNumber: partNumber,
+              title: title,
+              originalText: trimmedLine
+            });
+          }
+        }
+        
+        return parts.sort((a, b) => a.partNumber - b.partNumber);
+      }
+
+      /**
+       * 根据新目录匹配原书籍章节内容
+       * @param {Array} newParts - 新目录的章节数组
+       * @param {Array} originalChapters - 原书籍的章节数组
+       * @returns {Array} 匹配后的章节内容数组
+       */
+      function matchChaptersToNewParts(newParts, originalChapters) {
+        const matchedContent = [];
+        
+        for (const part of newParts) {
+          // 尝试根据标题匹配原章节
+          const matchedChapters = originalChapters.filter(chapter => {
+            const chapterTitle = (chapter.title_zh || chapter.title || '').toLowerCase();
+            const partTitle = part.title.toLowerCase();
+            
+            // 简单匹配：如果新标题包含在原标题中，或原标题包含在新标题中
+            return chapterTitle.includes(partTitle) || partTitle.includes(chapterTitle);
+          });
+          
+          // 合并匹配的章节内容
+          let combinedContent = '';
+          for (const chapter of matchedChapters) {
+            const content = chapter.content_zh || chapter.content || '';
+            if (content) {
+              combinedContent += content + '\n\n';
+            }
+          }
+          
+          matchedContent.push({
+            partNumber: part.partNumber,
+            title: part.title,
+            content: combinedContent.trim(),
+            originalChapters: matchedChapters
+          });
+        }
+        
+        return matchedContent;
+      }
+
+      /**
+       * 调用单段文章分割接口
+       * @param {string} title - 章节标题
+       * @param {string} content - 章节内容
+       * @param {number} maxWordCount - 最大字数
+       * @returns {Promise<Array>} 分割后的段落数组
+       */
+      async function splitChapterContent(title, content, maxWordCount) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10分钟超时
+        
+        try {
+          const response = await fetch("/api/restructure/split-chapter", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify({
+              title: title || "未命名章节",
+              content: content.trim(),
+              max_word_count: maxWordCount,
+              word_count: 0 // 后端会自动计算
+            }),
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            let errorMessage = `分割失败 (状态码: ${response.status})`;
+            try {
+              const errorText = await response.text();
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (e) {
+              // 如果无法读取响应，使用默认错误消息
+            }
+            throw new Error(errorMessage);
+          }
+          
+          let splitResult;
+          try {
+            splitResult = await response.json();
+          } catch (jsonError) {
+            throw new Error(`服务器响应格式错误: ${jsonError.message}`);
+          }
+          
+          const segments = splitResult.segments || [];
+          
+          if (segments.length === 0) {
+            throw new Error("分割失败，未生成任何片段");
+          }
+          
+          // 格式化返回结果
+          return segments.map((segment, index) => ({
+            title: segment.title || `第${index + 1}部分`,
+            content: segment.content || "",
+            word_count: segment.word_count || 0
+          }));
+          
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === "AbortError") {
+            throw new Error("请求超时（超过10分钟），请稍后重试或减少文章长度");
+          }
+          const errorMsg = fetchError.message || String(fetchError);
+          if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+            throw new Error("无法连接到服务器，请检查服务器是否正在运行");
+          }
+          throw fetchError;
+        }
+      }
+
+      // 新书生成按钮点击事件
+      const generateNewBookButton = document.getElementById("generateNewBookButton");
+      if (generateNewBookButton) {
+        generateNewBookButton.addEventListener("click", async () => {
+          if (!restructuredTocContent) {
+            const restructureStatus = document.getElementById("restructureStatus");
+            if (restructureStatus) {
+              renderStatus(restructureStatus, "请先完成目录重构", "error");
+            }
+            return;
+          }
+
+          const restructureMaxWords = document.getElementById("restructureMaxWords");
+          const maxWordCount = parseInt(restructureMaxWords?.value || "5000");
+          
+          if (isNaN(maxWordCount) || maxWordCount <= 0) {
+            const restructureStatus = document.getElementById("restructureStatus");
+            if (restructureStatus) {
+              renderStatus(restructureStatus, "分割字数上限设置无效", "error");
+            }
+            return;
+          }
+
+          // 禁用按钮
+          generateNewBookButton.disabled = true;
+          generateNewBookButton.textContent = "生成中...";
+          
+          const restructureStatus = document.getElementById("restructureStatus");
+          const newBookResult = document.getElementById("newBookResult");
+          const newBookResultContent = document.getElementById("newBookResultContent");
+
+          if (newBookResult) {
+            newBookResult.style.display = "none";
+          }
+          if (restructureStatus) {
+            renderStatus(restructureStatus, "开始生成新书...", "info");
+          }
+
+          try {
+            // 第一步：解析新目录结构
+            if (restructureStatus) {
+              renderStatus(restructureStatus, "正在解析新目录结构...", "info");
+            }
+            const newParts = parseNewTocStructure(restructuredTocContent);
+            
+            if (newParts.length === 0) {
+              throw new Error("无法解析新目录结构，请检查重构后的目录格式");
+            }
+
+            // 第二步：匹配原书籍章节内容到新目录
+            if (restructureStatus) {
+              renderStatus(restructureStatus, `正在匹配原书籍章节到新目录（${newParts.length}个部分）...`, "info");
+            }
+            const matchedContent = matchChaptersToNewParts(newParts, restructureChapters);
+
+            // 第三步：逐章处理 - 合并内容并分割
+            const newBookChapters = [];
+            
+            for (let i = 0; i < matchedContent.length; i++) {
+              const part = matchedContent[i];
+              
+              if (restructureStatus) {
+                renderStatus(restructureStatus, `正在处理第 ${i + 1}/${matchedContent.length} 部分：${part.title}...`, "info");
+              }
+
+              // 如果没有内容，跳过
+              if (!part.content || part.content.trim().length === 0) {
+                newBookChapters.push({
+                  partNumber: part.partNumber,
+                  title: part.title,
+                  segments: [{
+                    title: part.title,
+                    content: "[该部分暂无内容]",
+                    word_count: 0
+                  }]
+                });
+                continue;
+              }
+
+              try {
+                // 调用分割接口
+                const segments = await splitChapterContent(part.title, part.content, maxWordCount);
+                
+                newBookChapters.push({
+                  partNumber: part.partNumber,
+                  title: part.title,
+                  segments: segments
+                });
+
+                if (restructureStatus) {
+                  renderStatus(restructureStatus, `第 ${i + 1} 部分完成：${segments.length} 个段落`, "info");
+                }
+              } catch (error) {
+                console.error(`处理第 ${i + 1} 部分失败:`, error);
+                // 如果分割失败，仍然保留原内容
+                newBookChapters.push({
+                  partNumber: part.partNumber,
+                  title: part.title,
+                  segments: [{
+                    title: part.title,
+                    content: part.content,
+                    word_count: part.content.length,
+                    error: error.message
+                  }]
+                });
+              }
+            }
+
+            // 保存新书籍结构
+            newBookStructure = {
+              originalBook: restructureBook,
+              newToc: restructuredTocContent,
+              chapters: newBookChapters,
+              maxWordCount: maxWordCount,
+              generatedAt: new Date().toISOString()
+            };
+
+            // 第四步：显示新书结构
+            if (newBookResultContent) {
+              let resultHtml = `<div style="margin-bottom: 16px; padding: 12px; background: #f0f9ff; border-radius: 6px; border-left: 4px solid #3b82f6;">`;
+              resultHtml += `<h4 style="margin: 0 0 8px 0; color: #1e40af;">📚 新书结构</h4>`;
+              resultHtml += `<div style="font-size: 13px; color: #475569;">`;
+              resultHtml += `<div>原书籍：${restructureBook?.filename || '未知'}</div>`;
+              resultHtml += `<div>新书籍部分数：${newBookChapters.length}</div>`;
+              resultHtml += `<div>分割字数上限：${maxWordCount}字</div>`;
+              resultHtml += `<div>生成时间：${new Date().toLocaleString('zh-CN')}</div>`;
+              resultHtml += `</div></div>`;
+
+              // 显示每个部分的详细信息
+              for (const chapter of newBookChapters) {
+                resultHtml += `<div style="margin-bottom: 20px; padding: 16px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">`;
+                resultHtml += `<h5 style="margin: 0 0 12px 0; color: #1e293b; font-size: 16px; font-weight: 600;">第 ${chapter.partNumber} 部分：${escapeHtml(chapter.title)}</h5>`;
+                resultHtml += `<div style="font-size: 13px; color: #64748b; margin-bottom: 12px;">包含 ${chapter.segments.length} 个段落</div>`;
+                
+                // 显示每个段落
+                for (let j = 0; j < chapter.segments.length; j++) {
+                  const segment = chapter.segments[j];
+                  resultHtml += `<div style="margin-bottom: 12px; padding: 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #cbd5e1;">`;
+                  resultHtml += `<div style="font-weight: 600; color: #475569; margin-bottom: 6px;">段落 ${j + 1}：${escapeHtml(segment.title)}</div>`;
+                  if (segment.word_count > 0) {
+                    resultHtml += `<div style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">字数：${segment.word_count.toLocaleString()} 字</div>`;
+                  }
+                  if (segment.error) {
+                    resultHtml += `<div style="font-size: 12px; color: #ef4444; margin-bottom: 8px;">⚠️ 分割失败：${escapeHtml(segment.error)}</div>`;
+                  }
+                  resultHtml += `<div style="font-size: 13px; color: #64748b; max-height: 100px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(segment.content.substring(0, 500))}${segment.content.length > 500 ? '...' : ''}</div>`;
+                  resultHtml += `</div>`;
+                }
+                
+                resultHtml += `</div>`;
+              }
+
+              newBookResultContent.innerHTML = resultHtml;
+            }
+
+            if (newBookResult) {
+              newBookResult.style.display = "block";
+            }
+            if (restructureStatus) {
+              renderStatus(restructureStatus, `新书生成完成！共 ${newBookChapters.length} 个部分`, "success");
+            }
+          } catch (error) {
+            console.error("生成新书失败:", error);
+            const errorMessage = error.message || "生成失败";
+            if (restructureStatus) {
+              renderStatus(restructureStatus, `生成失败: ${errorMessage}`, "error");
+            }
+            if (newBookResultContent) {
+              newBookResultContent.innerHTML = `<p style='color: #ef4444;'>${escapeHtml(errorMessage)}</p>`;
+            }
+            if (newBookResult) {
+              newBookResult.style.display = "block";
+            }
+          } finally {
+            // 恢复按钮
+            generateNewBookButton.disabled = false;
+            generateNewBookButton.textContent = "📖 新书生成";
+          }
+        });
+      }
+
       // 初始化：加载提示词并设置第一个标签为激活状态
       document.addEventListener("DOMContentLoaded", () => {
         loadPromptParts();
         switchPromptTab("intro");
         selectDensity(selectedDensity);
+        // 自动高亮当前页面的导航链接
+        highlightCurrentNav();
       });
+
+      // 自动高亮当前页面的导航链接
+      function highlightCurrentNav() {
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(link => {
+          if (link.getAttribute('href') === currentPath || 
+              (currentPath === '/' && link.getAttribute('href') === '/') ||
+              (currentPath !== '/' && currentPath.endsWith(link.getAttribute('href'))) ||
+              link.getAttribute('href').includes(currentPath)) {
+            link.classList.add('active');
+          } else {
+            link.classList.remove('active');
+          }
+        });
+      }
 
       generateButton.addEventListener("click", generateInterpretation);
 

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页 - PDF解读系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* 导航栏样式 */
+        .top-navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px 20px;
+            margin: -20px -20px 20px -20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-brand {
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-brand:hover {
+            opacity: 0.9;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.25);
+            font-weight: 500;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .page-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 30px;
+        }
+
+        .page-card {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .page-card:hover {
+            border-color: #667eea;
+            background: #eff6ff;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .page-card-icon {
+            font-size: 36px;
+            margin-bottom: 12px;
+        }
+
+        .page-card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .page-card-desc {
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+    </style>
+    <script>
+        // 自动高亮当前页面的导航链接
+        function highlightCurrentNav() {
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href === currentPath || 
+                    (currentPath === '/' && href === '/') ||
+                    (currentPath !== '/' && currentPath.endsWith(href)) ||
+                    (href !== '/' && currentPath.includes(href.replace('/', '')))) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        // 页面加载时自动高亮当前页面
+        document.addEventListener('DOMContentLoaded', () => {
+            highlightCurrentNav();
+        });
+    </script>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="top-navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">📚 PDF解读系统</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 首页</a>
+                <a href="/aigen_test_page.html" class="nav-link">✨ 个性化解读</a>
+                <a href="/test_doubao_thinking.html" class="nav-link">🧠 深度思考测试</a>
+                <a href="/test_thinking.html" class="nav-link">🔬 思考模型测试</a>
+                <a href="/parser_test_page.html" class="nav-link">📄 文档解析</a>
+                <a href="/admin_books.html" class="nav-link">📖 书籍管理</a>
+                <a href="/admin.html" class="nav-link">⚙️ 系统管理</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1>📚 PDF解读系统</h1>
+            <p>选择功能页面开始使用</p>
+        </div>
+
+        <div class="content">
+            <h2 class="section-title">🧠 测试与调试页面</h2>
+            <div class="page-grid">
+                <a href="/test_doubao_thinking.html" class="page-card">
+                    <div class="page-card-icon">🧠</div>
+                    <div class="page-card-title">豆包深度思考测试</div>
+                    <div class="page-card-desc">纯测试页面 - 直接调用豆包深度思考模型，测试深度思考能力。可选择书籍章节进行解读测试。</div>
+                </a>
+
+                <a href="/test_thinking.html" class="page-card">
+                    <div class="page-card-icon">🔬</div>
+                    <div class="page-card-title">深度思考模型测试</div>
+                    <div class="page-card-desc">测试深度思考模型的 reasoning_content 提取和显示，通过解读生成接口进行测试。</div>
+                </a>
+
+                <a href="/parser_test_page.html" class="page-card">
+                    <div class="page-card-icon">📄</div>
+                    <div class="page-card-title">文档解析测试</div>
+                    <div class="page-card-desc">测试PDF文档解析功能，查看解析结果和章节提取效果。</div>
+                </a>
+            </div>
+
+            <h2 class="section-title" style="margin-top: 40px;">⚙️ 功能页面</h2>
+            <div class="page-grid">
+                <a href="/aigen_test_page.html" class="page-card">
+                    <div class="page-card-icon">✨</div>
+                    <div class="page-card-title">个性化解读生成</div>
+                    <div class="page-card-desc">选择书籍和章节，配置解读提示词和用户偏好，生成个性化解读内容。支持深度思考模型。</div>
+                </a>
+
+                <a href="/admin_books.html" class="page-card">
+                    <div class="page-card-icon">📖</div>
+                    <div class="page-card-title">书籍管理</div>
+                    <div class="page-card-desc">管理已导入的书籍，查看章节列表，管理书籍数据。</div>
+                </a>
+
+                <a href="/admin.html" class="page-card">
+                    <div class="page-card-icon">⚙️</div>
+                    <div class="page-card-title">系统管理</div>
+                    <div class="page-card-desc">系统设置和管理功能，查看系统状态和配置信息。</div>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

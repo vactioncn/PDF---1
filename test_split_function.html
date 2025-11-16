@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>测试文章分割函数</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-result {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    .info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+    #output {
+      margin-top: 20px;
+      max-height: 600px;
+      overflow-y: auto;
+      background: white;
+      padding: 15px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 测试 splitArticleIntoSegments 函数</h1>
+  <div id="status">正在加载函数...</div>
+  <div id="output"></div>
+
+  <script>
+    // 从 parser_test_page.html 复制核心函数
+    async function splitArticleIntoSegments(content, maxWordCount, title = "未命名文章") {
+      // 参数验证
+      if (!content || !content.trim()) {
+        throw new Error("文章内容不能为空");
+      }
+      
+      const actualMaxWordCount = parseInt(maxWordCount) || 10000;
+      if (actualMaxWordCount <= 0) {
+        throw new Error("字数要求必须大于0");
+      }
+      
+      // 计算原始字数
+      const calculateWordCount = (text) => {
+        if (!text) return 0;
+        return text.replace(/\s+/g, "").length;
+      };
+      
+      const originalWordCount = calculateWordCount(content);
+      if (originalWordCount === 0) {
+        throw new Error("文章内容为空");
+      }
+      
+      // 创建 AbortController 用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10分钟超时
+      
+      try {
+        const response = await fetch("/api/restructure/split-chapter", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            title: title || "未命名文章",
+            content: content.trim(),
+            max_word_count: actualMaxWordCount,
+            word_count: originalWordCount
+          }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          let errorMessage = `分割失败 (状态码: ${response.status})`;
+          try {
+            const errorText = await response.text();
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+              errorMessage = errorText || errorMessage;
+            }
+          } catch (e) {
+            // 如果无法读取响应，使用默认错误消息
+          }
+          throw new Error(errorMessage);
+        }
+        
+        let splitResult;
+        try {
+          splitResult = await response.json();
+        } catch (jsonError) {
+          throw new Error(`服务器响应格式错误: ${jsonError.message}`);
+        }
+        
+        const segments = splitResult.segments || [];
+        
+        if (segments.length === 0) {
+          throw new Error("分割失败，未生成任何片段");
+        }
+        
+        // 格式化返回结果，确保每个段落都有正确的字数
+        return segments.map((segment, index) => ({
+          title: segment.title || `第${index + 1}部分`,
+          content: segment.content || "",
+          word_count: segment.word_count || calculateWordCount(segment.content || "")
+        }));
+        
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === "AbortError") {
+          throw new Error("请求超时（超过10分钟），请稍后重试或减少文章长度");
+        }
+        // 更详细的错误信息
+        const errorMsg = fetchError.message || String(fetchError);
+        if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+          throw new Error("无法连接到服务器，请检查：\n1. 服务器是否正在运行（端口5001）\n2. 网络连接是否正常\n3. 浏览器控制台是否有更多错误信息");
+        }
+        throw fetchError;
+      }
+    }
+
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `test-result ${type}`;
+      div.textContent = message;
+      output.appendChild(div);
+      console.log(message);
+    }
+
+    async function runTests() {
+      status.textContent = '正在运行测试...';
+      output.innerHTML = '';
+
+      // 测试数据
+      const testContent = `人工智能（Artificial Intelligence，AI）是计算机科学的一个分支，致力于创建能够执行通常需要人类智能的任务的系统。
+
+机器学习是人工智能的核心技术之一。它使计算机能够在没有明确编程的情况下学习和改进。机器学习算法通过分析大量数据来识别模式并做出预测或决策。
+
+深度学习是机器学习的一个子集，它使用人工神经网络来模拟人脑的工作方式。深度神经网络由多个层组成，每一层都能够从输入数据中提取更复杂的特征。
+
+自然语言处理（NLP）是人工智能的另一个重要领域。它使计算机能够理解、解释和生成人类语言。从简单的文本分类到复杂的对话系统，NLP技术在各个领域都有广泛的应用。
+
+计算机视觉使机器能够理解和解释视觉信息。通过图像识别、物体检测和图像分割等技术，计算机视觉系统可以"看到"并理解周围的世界。`.trim();
+
+      // 测试 1: 基本功能
+      log('📝 测试1: 基本分割功能（5000字限制）', 'info');
+      try {
+        const segments1 = await splitArticleIntoSegments(testContent, 5000, 'AI概述');
+        log(`✅ 成功！分割为 ${segments1.length} 段`, 'success');
+        segments1.forEach((seg, idx) => {
+          log(`   段 ${idx + 1}: ${seg.title} (${seg.word_count} 字)`, 'info');
+          if (seg.word_count > 5000) {
+            log(`   ⚠️ 警告: 段 ${idx + 1} 字数超过限制`, 'error');
+          }
+        });
+      } catch (error) {
+        log(`❌ 失败: ${error.message}`, 'error');
+      }
+
+      // 测试 2: 错误处理 - 空内容
+      log('\n📝 测试2: 错误处理 - 空内容', 'info');
+      try {
+        await splitArticleIntoSegments("", 10000);
+        log('❌ 应该抛出错误，但没有抛出', 'error');
+      } catch (error) {
+        log(`✅ 正确处理: ${error.message}`, 'success');
+      }
+
+      // 测试 3: 错误处理 - 无效字数
+      log('\n📝 测试3: 错误处理 - 无效字数限制', 'info');
+      try {
+        await splitArticleIntoSegments("测试", 0);
+        log('❌ 应该抛出错误，但没有抛出', 'error');
+      } catch (error) {
+        log(`✅ 正确处理: ${error.message}`, 'success');
+      }
+
+      // 测试 4: 小字数限制
+      log('\n📝 测试4: 小字数限制（1000字）', 'info');
+      try {
+        const segments4 = await splitArticleIntoSegments(testContent, 1000, 'AI概述');
+        log(`✅ 成功！分割为 ${segments4.length} 段`, 'success');
+        segments4.forEach((seg, idx) => {
+          log(`   段 ${idx + 1}: ${seg.title} (${seg.word_count} 字)`, 'info');
+        });
+      } catch (error) {
+        log(`❌ 失败: ${error.message}`, 'error');
+      }
+
+      status.textContent = '✅ 测试完成！';
+      log('\n📊 所有测试完成！', 'success');
+    }
+
+    // 页面加载后自动运行测试
+    window.addEventListener('load', () => {
+      setTimeout(runTests, 500);
+    });
+  </script>
+</body>
+</html>
+
