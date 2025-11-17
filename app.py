@@ -1912,6 +1912,10 @@ def create_app() -> Flask:
     def serve_aigen_page():
         return send_from_directory(app.static_folder, "aigen_test_page.html")
 
+    @app.route("/book_restructure_page.html")
+    def serve_book_restructure_page():
+        return send_from_directory(app.static_folder, "book_restructure_page.html")
+
     @app.route("/admin.html")
     def serve_admin_page():
         return send_from_directory(app.static_folder, "admin.html")

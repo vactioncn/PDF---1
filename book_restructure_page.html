@@ -717,67 +717,112 @@ Part 3：{主题名称}
       /**
        * 解析新目录结构，提取PART1, PART2等章节信息
        * @param {string} tocText - 重构后的目录文本
-       * @returns {Array} 章节数组，包含 {title: string, partNumber: number, coveredChapters: Array}
+       * @returns {Array} 章节数组，包含 {title: string, partNumber: number, coveredChapters: Array, summary: string}
        */
       function parseNewTocStructure(tocText) {
-        if (!tocText) return [];
+        if (!tocText) {
+          console.warn("parseNewTocStructure: tocText 为空");
+          return [];
+        }
+        
+        console.log("开始解析目录结构，原始文本长度:", tocText.length);
+        console.log("原始文本预览:", tocText.substring(0, 500));
         
         const parts = [];
         const lines = tocText.split('\n');
         let currentPart = null;
         
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
           const trimmedLine = line.trim();
+          
+          // 跳过空行
           if (!trimmedLine) continue;
           
-          // 匹配 Part 1：标题 或 Part 1: 标题
-          const partMatch = trimmedLine.match(/^Part\s+(\d+)[：:：]\s*(.+)$/i);
+          // 匹配 Part 1：标题 或 Part 1: 标题 或 PART 1：标题（支持大小写、中英文冒号、可能的前后空格）
+          const partMatch = trimmedLine.match(/^(?:Part|PART|部分|第\s*)?\s*(\d+)[：:：]\s*(.+)$/i);
           if (partMatch) {
             // 保存上一个part
             if (currentPart) {
+              console.log(`保存 Part ${currentPart.partNumber}:`, currentPart);
               parts.push(currentPart);
             }
             // 创建新的part
+            const partNumber = parseInt(partMatch[1]);
+            const title = partMatch[2].trim();
             currentPart = {
-              partNumber: parseInt(partMatch[1]),
-              title: partMatch[2].trim(),
+              partNumber: partNumber,
+              title: title,
               coveredChapters: [],
               summary: ""
             };
+            console.log(`发现新 Part ${partNumber}: ${title}`);
             continue;
           }
           
-          // 匹配"覆盖章节："或"覆盖章节:"
-          if (currentPart && trimmedLine.match(/^覆盖章节[：:：]/)) {
-            // 提取章节编号
-            const chapterNumbers = trimmedLine.replace(/^覆盖章节[：:：]\s*/, '').split(/[，,、\s]+/).map(n => parseInt(n.trim())).filter(n => !isNaN(n));
-            currentPart.coveredChapters = chapterNumbers;
-            continue;
+          // 匹配"覆盖章节："或"覆盖章节:"（支持前面有缩进或空格）
+          if (currentPart) {
+            const coveredMatch = trimmedLine.match(/覆盖章节[：:：]\s*(.+)$/);
+            if (coveredMatch) {
+              const chapterText = coveredMatch[1].trim();
+              // 提取章节编号，支持多种分隔符：逗号、顿号、空格、制表符等
+              const chapterNumbers = chapterText
+                .split(/[，,、\s\t]+/)  // 支持逗号、顿号、空格、制表符分隔
+                .map(n => {
+                  // 移除可能的括号、引号等
+                  const cleaned = n.replace(/[（）()\[\]【】""''、,，]/g, '').trim();
+                  const num = parseInt(cleaned);
+                  return isNaN(num) ? null : num;
+                })
+                .filter(n => n !== null && n > 0);
+              
+              currentPart.coveredChapters = chapterNumbers;
+              console.log(`Part ${currentPart.partNumber} 覆盖章节:`, chapterNumbers);
+              continue;
+            }
           }
           
-          // 匹配"摘要："或"摘要:"
-          if (currentPart && trimmedLine.match(/^摘要[：:：]/)) {
-            currentPart.summary = trimmedLine.replace(/^摘要[：:：]\s*/, '').trim();
-            continue;
+          // 匹配"摘要："或"摘要:"（支持前面有缩进或空格）
+          if (currentPart) {
+            const summaryMatch = trimmedLine.match(/摘要[：:：]\s*(.+)$/);
+            if (summaryMatch) {
+              currentPart.summary = summaryMatch[1].trim();
+              console.log(`Part ${currentPart.partNumber} 摘要:`, currentPart.summary.substring(0, 50) + '...');
+              continue;
+            }
           }
           
-          // 如果当前有part，且不是Part开头，可能是摘要的续行
-          if (currentPart && !trimmedLine.match(/^Part\s+\d+/i)) {
-            if (currentPart.summary) {
-              currentPart.summary += '\n' + trimmedLine;
-            } else if (trimmedLine.length > 0) {
-              // 可能是摘要的第一行
-              currentPart.summary = trimmedLine;
+          // 如果当前有part，且不是Part开头，可能是摘要的续行（需要更智能的判断）
+          if (currentPart && !trimmedLine.match(/^(?:Part|PART|部分|第\s*)\s*\d+/i)) {
+            // 如果已经有摘要内容，且这行不是"覆盖章节"，则作为摘要续行
+            if (currentPart.summary || (!trimmedLine.match(/覆盖章节[：:：]/))) {
+              // 如果这行不是新的Part开头，可能是摘要的续行
+              if (!trimmedLine.match(/^(?:Part|PART|部分|第\s*)\s*\d+/i)) {
+                if (currentPart.summary) {
+                  currentPart.summary += '\n' + trimmedLine;
+                } else {
+                  // 如果还没有设置摘要，可能是摘要的第一行（没有"摘要："标记）
+                  // 但只有在这行看起来不像其他格式时才作为摘要
+                  if (!trimmedLine.match(/覆盖章节[：:：]/) && 
+                      !trimmedLine.match(/^\d+[\.、]/)) { // 不是数字开头的列表项
+                    currentPart.summary = trimmedLine;
+                  }
+                }
+              }
             }
           }
         }
         
         // 保存最后一个part
         if (currentPart) {
+          console.log(`保存最后一个 Part ${currentPart.partNumber}:`, currentPart);
           parts.push(currentPart);
         }
         
-        return parts.sort((a, b) => a.partNumber - b.partNumber);
+        const sortedParts = parts.sort((a, b) => a.partNumber - b.partNumber);
+        console.log(`解析完成，共找到 ${sortedParts.length} 个部分:`, sortedParts.map(p => `Part ${p.partNumber}: ${p.title} (${p.coveredChapters.length}章)`));
+        
+        return sortedParts;
       }
 
       /**
@@ -958,10 +1003,29 @@ Part 3：{主题名称}
             if (restructureStatus) {
               renderStatus(restructureStatus, "正在解析新目录结构...", "info");
             }
+            
+            console.log("开始解析新目录结构，内容:", restructuredTocContent);
             const newParts = parseNewTocStructure(restructuredTocContent);
             
             if (newParts.length === 0) {
-              throw new Error("无法解析新目录结构，请检查重构后的目录格式。确保格式为：Part 1：标题\n覆盖章节：1,2,3\n摘要：...");
+              // 显示更详细的错误信息
+              const preview = restructuredTocContent.substring(0, 200);
+              const errorMsg = `无法解析新目录结构。\n\n` +
+                `期望格式：\n` +
+                `Part 1：标题\n` +
+                `    覆盖章节：1,2,3\n` +
+                `    摘要：...\n\n` +
+                `实际内容预览：\n${preview}\n\n` +
+                `请检查浏览器控制台查看详细解析日志。`;
+              console.error("解析失败，原始内容:", restructuredTocContent);
+              throw new Error(errorMsg);
+            }
+            
+            // 检查每个part是否有覆盖章节
+            const partsWithoutChapters = newParts.filter(p => !p.coveredChapters || p.coveredChapters.length === 0);
+            if (partsWithoutChapters.length > 0) {
+              console.warn("以下部分没有找到覆盖章节:", partsWithoutChapters.map(p => `Part ${p.partNumber}: ${p.title}`));
+              // 这不算致命错误，可以继续处理
             }
 
             // 第二步：匹配原书籍章节内容到新目录

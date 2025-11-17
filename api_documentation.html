@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API接口和函数文档</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav {
+            background: #2d3748;
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        section {
+            margin-bottom: 3rem;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            color: #4a5568;
+            margin: 2rem 0 1rem 0;
+            padding-left: 1rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .api-item, .func-item {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .api-item:hover, .func-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .api-title, .func-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .method {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .method.get { background: #48bb78; color: white; }
+        .method.post { background: #4299e1; color: white; }
+        .method.delete { background: #f56565; color: white; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .status-ok { background: #c6f6d5; color: #22543d; }
+        .status-warning { background: #feebc8; color: #7c2d12; }
+        .status-error { background: #fed7d7; color: #742a2a; }
+        .status-important { background: #e9d8fd; color: #553c9a; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 0.75rem;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .info-value {
+            color: #2d3748;
+        }
+
+        .problem-history {
+            background: #fff5f5;
+            border-left: 4px solid #fc8181;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .problem-history h4 {
+            color: #742a2a;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .problem-item {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .problem-item::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #fc8181;
+            font-weight: bold;
+        }
+
+        .problem-item.error::before { content: "❌"; }
+        .problem-item.fix::before { content: "✅"; }
+
+        .solution {
+            background: #f0fff4;
+            border-left: 4px solid #48bb78;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .solution h4 {
+            color: #22543d;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        code {
+            background: #edf2f7;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: "Monaco", "Menlo", "Consolas", monospace;
+            font-size: 0.9em;
+            color: #e53e3e;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-family: "Monaco", "Menlo", "Consolas", monospace;
+            font-size: 0.9rem;
+        }
+
+        .summary-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+
+        .summary-section h3 {
+            color: white;
+            border: none;
+            padding: 0;
+            margin-bottom: 1rem;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .summary-item {
+            background: rgba(255,255,255,0.2);
+            padding: 1rem;
+            border-radius: 6px;
+        }
+
+        .summary-item h4 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .recommendations {
+            background: #edf2f7;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+
+        .recommendations h3 {
+            margin-top: 0;
+            border: none;
+            padding: 0;
+        }
+
+        .recommendation-item {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .recommendation-item::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #48bb78;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .recommendation-item.avoid::before {
+            content: "✗";
+            color: #f56565;
+        }
+
+        .page-route {
+            background: #e6fffa;
+            border-left: 4px solid #38b2ac;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 4px;
+        }
+
+        .page-route strong {
+            color: #2c7a7b;
+        }
+
+        @media print {
+            .nav { display: none; }
+            .api-item, .func-item { break-inside: avoid; }
+        }
+
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.8rem; }
+            .content { padding: 1rem; }
+            .info-grid { grid-template-columns: 1fr; }
+            .nav-links { flex-direction: column; gap: 0.5rem; }
+        }
+
+        .toc {
+            background: #f7fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            border: none;
+            padding: 0;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .toc li::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+        }
+
+        .toc a {
+            color: #4a5568;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .toc a:hover {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 API接口和函数文档</h1>
+            <p>完整的接口说明、问题历史和最佳实践指南</p>
+        </header>
+
+        <nav class="nav">
+            <ul class="nav-links">
+                <li><a href="#apis">API接口</a></li>
+                <li><a href="#functions">核心函数</a></li>
+                <li><a href="#pages">页面路由</a></li>
+                <li><a href="#summary">问题总结</a></li>
+                <li><a href="#recommendations">使用建议</a></li>
+            </ul>
+        </nav>
+
+        <div class="content">
+            <section id="apis">
+                <h2>📋 API接口列表</h2>
+
+                <h3>一、PDF/EPUB解析相关接口</h3>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method post">POST</span>
+                        <code>/api/parse/clean_toc</code>
+                        <span class="status-badge status-ok">✅ 已修复</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">清洗目录接口（支持PDF和EPUB）</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">文件上传</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">清洗后的目录列表</div>
+                    </div>
+                    <div class="problem-history">
+                        <h4>问题历史</h4>
+                        <div class="problem-item error">EPUB解析问题：之前直接使用<code>BytesIO</code>传给<code>epub.read_epub()</code>会报错：<code>stat: path should be string, bytes, os.PathLike or integer, not BytesIO</code></div>
+                        <div class="problem-item fix">修复方案：改用临时文件，先写入临时文件，再传给<code>epub.read_epub()</code>，使用完后删除临时文件（见代码2574-2585行）</div>
+                    </div>
+                    <div class="solution">
+                        <h4>解决的问题</h4>
+                        <p>将PDF/EPUB的原始目录通过LLM清洗，去除版权页、序言等非正文章节，生成干净的目录结构</p>
+                    </div>
+                </div>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method post">POST</span>
+                        <code>/api/parse/debug_toc</code>
+                        <span class="status-badge status-ok">✅ 正常</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">调试接口，仅提取原始目录，不进行LLM清洗（支持PDF和EPUB）</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">文件上传</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">原始目录列表</div>
+                    </div>
+                    <div class="solution">
+                        <h4>解决的问题</h4>
+                        <p>用于调试，查看PDF/EPUB的原始目录结构，不经过LLM处理，便于排查问题</p>
+                    </div>
+                </div>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method post">POST</span>
+                        <code>/api/parse/extract</code>
+                        <span class="status-badge status-ok">✅ 已修复</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">提取内容接口（支持PDF和EPUB）</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">cleaned_toc（清洗后的目录）、文件上传</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">章节内容列表</div>
+                    </div>
+                    <div class="problem-history">
+                        <h4>问题历史</h4>
+                        <div class="problem-item error">EPUB内容提取问题：同样存在BytesIO问题</div>
+                        <div class="problem-item fix">修复方案：使用临时文件方式（见代码3093-3100行）</div>
+                    </div>
+                    <div class="solution">
+                        <h4>解决的问题</h4>
+                        <p>根据清洗后的目录，从PDF/EPUB文件中提取每个章节的正文内容，并统计字数</p>
+                    </div>
+                </div>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method post">POST</span>
+                        <code>/api/parse</code>
+                        <span class="status-badge status-warning">⚠️ 旧接口</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">解析PDF文档（旧接口，仅支持PDF）</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">文件上传</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">解析结果</div>
+                    </div>
+                    <div class="problem-history">
+                        <h4>问题</h4>
+                        <p>仅支持PDF，不支持EPUB，功能已被接口1-3替代</p>
+                    </div>
+                    <div class="solution">
+                        <h4>建议</h4>
+                        <p>使用接口1-3的组合流程（clean_toc → extract）</p>
+                    </div>
+                </div>
+
+                <h3>二、提示词相关接口 ⭐ 核心配置接口</h3>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method get">GET</span>
+                        <code>/api/settings/prompt_parts</code>
+                        <span class="status-badge status-ok">✅ 正常</span>
+                        <span class="status-badge status-important">⭐ 重要</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">获取分解后的提示词各部分</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">intro_prompt, body_prompt, quiz_prompt, question_prompt</div>
+                    </div>
+                    <div class="solution">
+                        <h4>解决的问题</h4>
+                        <p>将完整的提示词拆分为4个部分（导读、正文、选择题、思考题），便于分别调优和管理</p>
+                        <div class="code-block">
+intro_prompt: 个性化导读摘要（150-300字）
+body_prompt: 正文讲解（根据密度20%/50%/70%）
+quiz_prompt: 知识点选择题（3-5题）
+question_prompt: 一个强有力的思考问题
+                        </div>
+                    </div>
+                </div>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method post">POST</span>
+                        <code>/api/settings/prompt_parts</code>
+                        <span class="status-badge status-ok">✅ 正常</span>
+                        <span class="status-badge status-important">⭐ 重要</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">保存分解后的提示词各部分</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">intro_prompt, body_prompt, quiz_prompt, question_prompt</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">status</div>
+                    </div>
+                    <div class="solution">
+                        <h4>解决的问题</h4>
+                        <p>保存修改后的提示词各部分，持久化到数据库，供后续生成使用</p>
+                    </div>
+                </div>
+
+                <h3>三、内容生成相关接口</h3>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method post">POST</span>
+                        <code>/api/generate</code>
+                        <span class="status-badge status-ok">✅ 已优化</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">生成章节解读内容（完整版，包含5个部分）</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">chapterTitle, chapterText, userProfession, readingGoal, focus, density, intro_prompt（可选）, body_prompt（可选）, quiz_prompt（可选）, question_prompt（可选）</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">result（解读结果，包含reasoning_content和content）, record_id</div>
+                    </div>
+                    <div class="problem-history">
+                        <h4>问题历史</h4>
+                        <div class="problem-item error">JSON解析失败：LLM返回的JSON中包含控制字符（ASCII 0-31），导致解析失败</div>
+                        <div class="problem-item fix">修复方案：实现了<code>_fix_json_string()</code>和<code>_fix_json_control_chars()</code>函数，自动修复控制字符（见代码1107-1700行）</div>
+                        <div class="problem-item error">思考过程提取问题：需要从LLM响应中提取<code>reasoning_content</code>（思考过程）和<code>content</code>（最终结果）</div>
+                        <div class="problem-item fix">修复方案：实现了<code>_add_debug_info_to_result()</code>函数，自动提取和分离思考过程和最终结果</div>
+                    </div>
+                    <div class="solution">
+                        <h4>解决的问题</h4>
+                        <p>根据用户画像（职业、阅读目标、关注点、密度）和章节内容，生成个性化的解读，包含导读、正文讲解、应用场景、选择题、思考题</p>
+                    </div>
+                </div>
+
+                <h3>六、文章重构相关接口</h3>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method post">POST</span>
+                        <code>/api/restructure/split-article</code>
+                        <span class="status-badge status-ok">✅ 标准接口</span>
+                        <span class="status-badge status-important">⭐ 推荐使用</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">标准文章分割接口</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">text（文本内容，必需）, max_length（每段最大字数，必需）, title（可选，默认"未命名文章"）</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">segments（分割后的段落列表，每个包含title, content, word_count）</div>
+                    </div>
+                    <div class="solution">
+                        <h4>解决的问题</h4>
+                        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                            <li><strong>长文章分割</strong>：将超过字数限制的长文章分割成多个段落</li>
+                            <li><strong>语义完整性</strong>：使用TextTiling风格的语义分割，保持话题完整性</li>
+                            <li><strong>严格字数控制</strong>：确保每个段落不超过指定的字数限制</li>
+                            <li><strong>智能标题生成</strong>：为每个分割后的段落自动生成语义化的标题（使用flash模型，速度快）</li>
+                        </ul>
+                        <div class="code-block" style="margin-top: 1rem;">
+工作流程：
+1. 语义分割：使用 semantic_segmentation() 识别话题边界
+2. 字数打包：使用 pack_segments_by_word_count() 按字数限制重新打包
+3. 标题生成：为每个打包块调用LLM生成标题
+                        </div>
+                        <p style="margin-top: 1rem;"><strong>使用场景</strong>：书籍章节重构、长文章分段、内容重组</p>
+                    </div>
+                </div>
+
+                <h3>五、播客相关接口</h3>
+
+                <div class="api-item">
+                    <div class="api-title">
+                        <span class="method post">POST</span>
+                        <code>/api/podcast/generate</code>
+                        <span class="status-badge status-error">❌ 有问题</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">生成播客音频</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">text, voice_type</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">音频数据</div>
+                    </div>
+                    <div class="problem-history">
+                        <h4>问题历史</h4>
+                        <div class="problem-item error">错误的API端点：使用了<code>wss://openspeech.bytedance.com/api/v3/tts/bidirection</code>（通用TTS端点）</div>
+                        <div class="problem-item fix">正确端点：应该是<code>wss://openspeech.bytedance.com/api/v3/sami/podcasttts</code>（播客专用端点）</div>
+                        <div class="problem-item error">错误的协议：使用了简单的JSON WebSocket消息</div>
+                        <div class="problem-item fix">正确协议：需要使用自定义二进制协议（protocols模块）</div>
+                        <div class="problem-item error">缺少必要的请求头：缺少<code>X-Api-App-Key: "aGjiRDfUWi"</code>（固定值）</div>
+                        <div class="problem-item error">错误的WebSocket库：使用了<code>websocket-client</code>（同步库）</div>
+                        <div class="problem-item fix">正确库：应该使用<code>websockets</code>（异步库）</div>
+                    </div>
+                    <div class="solution">
+                        <h4>当前状态</h4>
+                        <p>代码中已导入protocols模块和websockets，但可能仍有问题，建议测试后再使用</p>
+                        <p style="margin-top: 0.5rem;"><strong>参考文档</strong>：见<code>PODCAST_ISSUE_SUMMARY.md</code></p>
+                    </div>
+                </div>
+
+            </section>
+
+            <section id="functions">
+                <h2>🔧 核心函数列表</h2>
+
+                <h3>一、文章分割相关函数</h3>
+
+                <div class="func-item">
+                    <div class="api-title">
+                        <code>split_article_into_segments()</code>
+                        <span class="status-badge status-ok">✅ 核心函数，已优化</span>
+                        <span class="status-badge status-important">⭐</span>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">功能：</div>
+                        <div class="info-value">将文章分割成多个段落，每个段落不超过指定字数，并为每个段落生成标题</div>
+                        <div class="info-label">输入：</div>
+                        <div class="info-value">title, content, max_word_count（默认10000）, api_key（可选，从环境变量获取）, similarity_threshold（默认0.3）</div>
+                        <div class="info-label">输出：</div>
+                        <div class="info-value">List[Dict] - 每个字典包含title（生成的标题）, content（段落内容）, word_count（字数）</div>
+                    </div>
+                    <div class="problem-history">
+                        <h4>问题历史</h4>
+                        <div class="problem-item error">初始实现问题：直接让LLM按字数分割，LLM无法精确控制字数，导致某些段落超过限制</div>
+                        <div class="problem-item fix">修复方案：改为三步流程：语义分割 → 字数打包 → 标题生成，确保严格字数控制</div>
+                        <div class="problem-item fix">模型优化：标题生成使用<code>doubao-seed-1-6-flash-250828</code>（flash模型），速度快</div>
+                    </div>
+                    <div class="solution">
+                        <h4>解决的问题</h4>
+                        <p>将长文章智能分割，保持语义完整性，严格字数控制，自动生成标题</p>
+                    </div>
+                </div>
+
+            </section>
+
+            <section id="pages">
+                <h2>📝 页面路由</h2>
+                <div class="page-route"><strong>P1.</strong> GET / 或 GET /index.html - 首页</div>
+                <div class="page-route"><strong>P2.</strong> GET /parser_test_page.html - PDF解析测试页面</div>
+                <div class="page-route"><strong>P3.</strong> GET /aigen_test_page.html - AI生成测试页面</div>
+                <div class="page-route"><strong>P4.</strong> GET /book_restructure_page.html - 书籍重构页面</div>
+                <div class="page-route"><strong>P5.</strong> GET /admin.html - 管理页面</div>
+                <div class="page-route"><strong>P6.</strong> GET /admin_books.html - 书籍管理页面</div>
+                <div class="page-route"><strong>P7.</strong> GET /test_thinking.html - 深度思考模型测试页面</div>
+                <div class="page-route"><strong>P8.</strong> GET /test_doubao_thinking.html - 豆包深度思考能力纯测试页面</div>
+            </section>
+
+            <section id="summary" class="summary-section">
+                <h2>🔍 主要问题总结</h2>
+
+                <h3>已修复的问题</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <h4>1. EPUB解析BytesIO问题</h4>
+                        <p>接口1、3：使用临时文件解决BytesIO问题</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>2. JSON控制字符问题</h4>
+                        <p>接口12、函数F9：实现了自动修复控制字符的函数</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>3. 文章分割字数控制</h4>
+                        <p>接口17、函数F1：改为三步流程确保严格字数控制</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem;">已知问题</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <h4>1. 播客API问题</h4>
+                        <p>接口16：使用了错误的端点和协议，需要修复</p>
+                    </div>
+                    <div class="summary-item">
+                        <h4>2. TTS V1 API问题</h4>
+                        <p>V1 API可能不支持，建议使用V3 WebSocket接口</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="recommendations" class="recommendations">
+                <h2>📌 使用建议</h2>
+
+                <h3>推荐流程</h3>
+                <div class="recommendation-item">
+                    <strong>提示词配置</strong>：使用接口8获取分解后的提示词，使用接口9保存修改后的提示词，避免使用接口10-11（旧接口）
+                </div>
+                <div class="recommendation-item">
+                    <strong>文档解析</strong>：使用接口1清洗目录，使用接口3提取内容，使用接口5批量入库（或接口6-7分步入库），避免使用接口4（旧接口，仅支持PDF）
+                </div>
+                <div class="recommendation-item">
+                    <strong>内容生成</strong>：使用接口12生成完整解读，使用接口13调试单个部分
+                </div>
+                <div class="recommendation-item">
+                    <strong>文章重构</strong>：使用接口17（split-article）进行文章分割，避免使用接口18（旧接口，参数不一致）
+                </div>
+                <div class="recommendation-item">
+                    <strong>管理操作</strong>：使用接口19-22进行书籍管理
+                </div>
+                <div class="recommendation-item avoid">
+                    <strong>测试</strong>：使用接口23测试豆包深度思考模型，避免使用接口16（播客API有问题）
+                </div>
+
+                <h3 style="margin-top: 2rem;">最佳实践</h3>
+                <ul style="margin-left: 1.5rem; margin-top: 1rem;">
+                    <li><strong>新项目</strong>：优先使用标记为✅的接口</li>
+                    <li><strong>旧项目迁移</strong>：逐步从旧接口迁移到新接口</li>
+                    <li><strong>问题排查</strong>：遇到问题先查看"问题历史"部分</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>🎯 接口状态标记说明</h2>
+                <div class="info-grid" style="grid-template-columns: 1fr 3fr;">
+                    <div><span class="status-badge status-ok">✅ 正常/已修复</span></div>
+                    <div>接口工作正常，或已修复历史问题</div>
+                    <div><span class="status-badge status-warning">⚠️ 兼容旧接口</span></div>
+                    <div>旧接口，建议使用新接口</div>
+                    <div><span class="status-badge status-error">❌ 有问题</span></div>
+                    <div>接口存在问题，不建议使用</div>
+                    <div><span class="status-badge status-important">⭐ 特别重要</span></div>
+                    <div>核心功能接口</div>
+                </div>
+            </section>
+        </div>
+    </div>
+</body>
+</html>
+
