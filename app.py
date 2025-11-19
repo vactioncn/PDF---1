@@ -65,12 +65,21 @@ load_dotenv()
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=".")
     CORS(app)
+    # 本地运行使用 http，云托管使用 https
+    is_local = os.environ.get("CLOUDBASE_ENV") is None
+    if is_local:
+        app.config['PREFERRED_URL_SCHEME'] = 'http'
+    else:
+        app.config['PREFERRED_URL_SCHEME'] = 'https'
+    app.config['SERVER_NAME'] = None
 
     database_url = os.environ.get(
         "DATABASE_URL",
         "sqlite:///" + os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.db"),
     )
-    engine = create_engine(database_url, future=True)
+    # 检测数据库类型
+    is_mysql = database_url.startswith("mysql") or database_url.startswith("mysql+pymysql")
+    engine = create_engine(database_url, future=True, pool_pre_ping=True, pool_recycle=3600)
 
     deepseek_api_key = os.environ.get("DEEPSEEK_API_KEY", "sk-2a870e378cb94696ab3a957a84ee5514")
     deepseek_base_url = os.environ.get("DEEPSEEK_API_BASE", "https://api.deepseek.com/v1")
@@ -118,22 +127,44 @@ def create_app() -> Flask:
         return truncated
 
     def column_exists(conn, table: str, column: str) -> bool:
-        result = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
-        return any(row[1] == column for row in result)
+        if is_mysql:
+            # MySQL 使用 INFORMATION_SCHEMA
+            result = conn.execute(
+                text(
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND COLUMN_NAME = :column"
+                ),
+                {"table": table, "column": column}
+            ).fetchall()
+            return len(result) > 0
+        else:
+            # SQLite 使用 PRAGMA
+            result = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+            return any(row[1] == column for row in result)
 
     def add_column_if_missing(conn, table: str, column: str, definition: str) -> None:
         if not column_exists(conn, table, column):
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {definition}"))
 
     def init_db() -> None:
+        # 根据数据库类型选择 SQL 语法
+        if is_mysql:
+            id_type = "INT AUTO_INCREMENT PRIMARY KEY"
+            text_type = "TEXT"
+            int_type = "INT"
+        else:
+            id_type = "INTEGER PRIMARY KEY AUTOINCREMENT"
+            text_type = "TEXT"
+            int_type = "INTEGER"
+        
         with engine.begin() as conn:
             conn.execute(
                 text(
-                    """
+                    f"""
                     CREATE TABLE IF NOT EXISTS settings (
-                        key TEXT PRIMARY KEY,
-                        value TEXT NOT NULL,
-                        updated_at TEXT NOT NULL
+                        `key` {text_type} PRIMARY KEY,
+                        value {text_type} NOT NULL,
+                        updated_at {text_type} NOT NULL
                     )
                     """
                 )
@@ -141,18 +172,18 @@ def create_app() -> Flask:
 
             conn.execute(
                 text(
-                    """
+                    f"""
                     CREATE TABLE IF NOT EXISTS interpretations (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        chapter_title TEXT NOT NULL,
-                        user_profession TEXT NOT NULL,
-                        reading_goal TEXT NOT NULL,
-                        focus TEXT NOT NULL,
-                        density TEXT NOT NULL,
-                        chapter_text TEXT NOT NULL,
-                        master_prompt TEXT NOT NULL,
-                        result_json TEXT NOT NULL,
-                        created_at TEXT NOT NULL
+                        id {id_type},
+                        chapter_title {text_type} NOT NULL,
+                        user_profession {text_type} NOT NULL,
+                        reading_goal {text_type} NOT NULL,
+                        focus {text_type} NOT NULL,
+                        density {text_type} NOT NULL,
+                        chapter_text {text_type} NOT NULL,
+                        master_prompt {text_type} NOT NULL,
+                        result_json {text_type} NOT NULL,
+                        created_at {text_type} NOT NULL
                     )
                     """
                 )
@@ -160,13 +191,13 @@ def create_app() -> Flask:
 
             conn.execute(
                 text(
-                    """
+                    f"""
                     CREATE TABLE IF NOT EXISTS books (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        filename TEXT NOT NULL,
-                        chapter_count INTEGER NOT NULL,
-                        total_word_count INTEGER NOT NULL,
-                        created_at TEXT NOT NULL
+                        id {id_type},
+                        filename {text_type} NOT NULL,
+                        chapter_count {int_type} NOT NULL,
+                        total_word_count {int_type} NOT NULL,
+                        created_at {text_type} NOT NULL
                     )
                     """
                 )
@@ -174,25 +205,35 @@ def create_app() -> Flask:
 
             conn.execute(
                 text(
-                    """
+                    f"""
                     CREATE TABLE IF NOT EXISTS chapter_summaries (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        book_id INTEGER,
-                        chapter_title TEXT NOT NULL,
-                        chapter_content TEXT NOT NULL,
-                        chapter_title_zh TEXT,
-                        chapter_content_zh TEXT,
-                        summary TEXT NOT NULL,
-                        word_count INTEGER NOT NULL,
-                        created_at TEXT NOT NULL,
+                        id {id_type},
+                        book_id {int_type},
+                        chapter_title {text_type} NOT NULL,
+                        chapter_content {text_type} NOT NULL,
+                        chapter_title_zh {text_type},
+                        chapter_content_zh {text_type},
+                        summary {text_type} NOT NULL,
+                        word_count {int_type} NOT NULL,
+                        created_at {text_type} NOT NULL,
                         FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
                     )
                     """
                 )
             )
 
-            info = conn.execute(text("PRAGMA table_info(chapter_summaries)")).fetchall()
-            existing_columns = [row[1] for row in info]
+            # 获取现有列
+            if is_mysql:
+                result = conn.execute(
+                    text(
+                        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS "
+                        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'chapter_summaries'"
+                    )
+                ).fetchall()
+                existing_columns = [row[0] for row in result]
+            else:
+                info = conn.execute(text("PRAGMA table_info(chapter_summaries)")).fetchall()
+                existing_columns = [row[1] for row in info]
             required_columns = [
                 "id",
                 "book_id",
@@ -206,20 +247,21 @@ def create_app() -> Flask:
             ]
 
             if not all(col in existing_columns for col in required_columns):
-                conn.execute(text("ALTER TABLE chapter_summaries RENAME TO chapter_summaries_backup"))
+                backup_table = "chapter_summaries_backup"
+                conn.execute(text(f"ALTER TABLE chapter_summaries RENAME TO {backup_table}"))
                 conn.execute(
                     text(
-                        """
+                        f"""
                         CREATE TABLE chapter_summaries (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            book_id INTEGER,
-                            chapter_title TEXT NOT NULL,
-                            chapter_content TEXT NOT NULL,
-                            chapter_title_zh TEXT,
-                            chapter_content_zh TEXT,
-                            summary TEXT NOT NULL,
-                            word_count INTEGER NOT NULL,
-                            created_at TEXT NOT NULL,
+                            id {id_type},
+                            book_id {int_type},
+                            chapter_title {text_type} NOT NULL,
+                            chapter_content {text_type} NOT NULL,
+                            chapter_title_zh {text_type},
+                            chapter_content_zh {text_type},
+                            summary {text_type} NOT NULL,
+                            word_count {int_type} NOT NULL,
+                            created_at {text_type} NOT NULL,
                             FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
                         )
                         """
@@ -252,25 +294,42 @@ def create_app() -> Flask:
 
     def store_setting(key: str, value: str) -> None:
         with engine.begin() as conn:
-            conn.execute(
-                text(
-                    """
-                    INSERT INTO settings (key, value, updated_at)
-                    VALUES (:key, :value, :updated_at)
-                    ON CONFLICT(key) DO UPDATE SET
-                        value = excluded.value,
-                        updated_at = excluded.updated_at
-                    """
-                ),
-                {"key": key, "value": value, "updated_at": datetime.utcnow().isoformat()},
-            )
+            if is_mysql:
+                # MySQL 使用 ON DUPLICATE KEY UPDATE
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO settings (`key`, value, updated_at)
+                        VALUES (:key, :value, :updated_at)
+                        ON DUPLICATE KEY UPDATE
+                            value = VALUES(value),
+                            updated_at = VALUES(updated_at)
+                        """
+                    ),
+                    {"key": key, "value": value, "updated_at": datetime.utcnow().isoformat()},
+                )
+            else:
+                # SQLite 使用 ON CONFLICT
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO settings (key, value, updated_at)
+                        VALUES (:key, :value, :updated_at)
+                        ON CONFLICT(key) DO UPDATE SET
+                            value = excluded.value,
+                            updated_at = excluded.updated_at
+                        """
+                    ),
+                    {"key": key, "value": value, "updated_at": datetime.utcnow().isoformat()},
+                )
 
     def load_setting(key: str, default: str = "") -> str:
         with engine.begin() as conn:
+            key_field = "`key`" if is_mysql else "key"
             result = conn.execute(
                 text(
-                    """
-                    SELECT value FROM settings WHERE key = :key
+                    f"""
+                    SELECT value FROM settings WHERE {key_field} = :key
                     """
                 ),
                 {"key": key},
@@ -1781,6 +1840,11 @@ def create_app() -> Flask:
     def test_doubao_thinking_page():
         """豆包深度思考能力纯测试页面"""
         return send_from_directory(".", "test_doubao_thinking.html")
+
+    @app.route("/api_documentation.html")
+    def api_documentation_page():
+        """API接口和函数文档页面"""
+        return send_from_directory(".", "api_documentation.html")
 
     @app.post("/api/test/doubao-thinking")
     def test_doubao_thinking_endpoint():
@@ -6404,6 +6468,8 @@ D. ……
 
 if __name__ == "__main__":
     app = create_app()
-    port = int(os.environ.get("PORT", "5000"))
+    # 默认使用 5001，因为 macOS 的 AirPlay 占用 5000 端口
+    port = int(os.environ.get("PORT", "5001"))
+    print(f"🚀 服务启动在 http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=True)
 

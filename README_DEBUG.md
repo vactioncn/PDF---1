@@ -30,3 +30,5 @@ python3 app.py 2>&1 | tail -1000 > recent_log.txt
 - `✅ 思考过程已添加到返回结果中` 或 `⚠️ 未检测到思考过程`
 
 
+
+

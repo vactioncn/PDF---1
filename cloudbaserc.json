@@ -1,0 +1,20 @@
+{
+  "envId": "aireadbook001-7g3su3oo81a89e2e",
+  "framework": {
+    "name": "pdf-app-container",
+    "plugins": {
+      "container": {
+        "use": "@cloudbase/framework-plugin-container",
+        "inputs": {
+          "serviceName": "pdf-service",
+          "servicePath": "/",
+          "dockerfilePath": "./Dockerfile",
+          "containerPort": 8080
+        }
+      }
+    }
+  },
+  "cloudrun": {
+    "name": "pdf-service"
+  }
+}
