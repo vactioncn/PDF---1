@@ -11,4 +11,7 @@ beautifulsoup4==4.12.3
 websocket-client==1.7.0
 websockets==13.1
 volcengine-python-sdk[ark]
+pytest>=7.0.0
+hypothesis>=6.0.0
+werkzeug>=3.0.0
 

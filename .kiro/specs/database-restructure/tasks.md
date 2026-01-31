@@ -40,7 +40,7 @@
     - 包含 name, type, version, content, is_active, created_at 字段
     - _Requirements: 8.1, 8.2, 8.3_
 
-- [-] 2. 实现 FileStorageService
+- [x] 2. 实现 FileStorageService
   - [x] 2.1 实现文件存储和哈希计算
     - 创建 FileStorageService 类
     - 实现 save_file() 方法保存文件到 uploads/ 目录
@@ -48,11 +48,11 @@
     - 实现 delete_file() 方法删除文件
     - _Requirements: 3.1, 3.2, 3.5_
   
-  - [ ] 2.2 编写 FileStorageService 属性测试
+  - [x] 2.2 编写 FileStorageService 属性测试
     - **Property 9: File Storage and Hash Calculation**
     - **Validates: Requirements 3.1, 3.2, 3.4**
 
-- [ ] 3. 实现 UserService
+- [x] 3. 实现 UserService
   - [x] 3.1 实现用户 CRUD 操作
     - 创建 create_user() 函数，使用 werkzeug.security 进行密码哈希
     - 创建 authenticate() 函数验证用户凭据
@@ -60,18 +60,18 @@
     - 创建 get_user() 和 delete_user() 函数
     - _Requirements: 1.1, 1.2, 1.5_
   
-  - [ ] 3.2 编写 UserService 属性测试
+  - [x] 3.2 编写 UserService 属性测试
     - **Property 1: User Password Hashing**
     - **Property 2: Profile Update Persistence**
     - **Property 3: Unique Constraint Enforcement**
     - **Property 4: User Deletion Soft Reference**
     - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5**
 
-- [ ] 4. Checkpoint - 确保基础服务测试通过
+- [x] 4. Checkpoint - 确保基础服务测试通过
   - 运行所有测试，确保 FileStorageService 和 UserService 正常工作
   - 如有问题请询问用户
 
-- [-] 5. 实现 BookService
+- [x] 5. 实现 BookService
   - [x] 5.1 实现书籍 CRUD 和状态管理
     - 重构 store_book() 函数支持新字段
     - 创建 update_status() 函数管理状态转换
@@ -80,14 +80,14 @@
     - 更新 delete_book() 级联删除文件
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.6, 3.3, 3.5_
   
-  - [ ] 5.2 编写 BookService 属性测试
+  - [x] 5.2 编写 BookService 属性测试
     - **Property 5: Enum Field Validation**
     - **Property 6: Book Initial Status**
     - **Property 10: Hash-Based Deduplication**
     - **Property 11: File Deletion Cascade**
     - **Validates: Requirements 2.1, 2.2, 2.5, 2.7, 3.3, 3.5**
 
-- [ ] 6. 实现 ChapterService
+- [x] 6. 实现 ChapterService
   - [x] 6.1 实现章节 CRUD 操作
     - 创建 create_chapter() 函数，同时创建 chapter_contents 记录
     - 创建 update_translation() 函数更新翻译内容和状态
@@ -101,7 +101,7 @@
     - 创建 get_source_chapters() 函数查询源章节
     - _Requirements: 5.1, 5.2, 5.3_
   
-  - [ ] 6.3 编写 ChapterService 属性测试
+  - [x] 6.3 编写 ChapterService 属性测试
     - **Property 12: Chapter Data Separation**
     - **Property 13: Chapter Index Sequencing**
     - **Property 14: Translation Status Tracking**
@@ -109,11 +109,11 @@
     - **Property 16: Restructure Mapping JSON Round-Trip**
     - **Validates: Requirements 4.1-4.6, 5.1-5.3**
 
-- [ ] 7. Checkpoint - 确保核心服务测试通过
+- [x] 7. Checkpoint - 确保核心服务测试通过
   - 运行所有测试，确保 BookService 和 ChapterService 正常工作
   - 如有问题请询问用户
 
-- [ ] 8. 实现 InterpretationService
+- [x] 8. 实现 InterpretationService
   - [x] 8.1 实现解读 CRUD 操作
     - 重构 store_interpretation() 函数支持新字段和分表存储
     - 创建 get_interpretation() 函数支持可选包含内容
@@ -121,14 +121,14 @@
     - 创建 delete_interpretation() 函数（级联删除内容）
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 7.1, 7.2, 7.3, 7.4_
   
-  - [ ] 8.2 编写 InterpretationService 属性测试
+  - [x] 8.2 编写 InterpretationService 属性测试
     - **Property 19: Interpretation Data Separation**
     - **Property 20: Interpretation Required and Optional Fields**
     - **Property 21: Interpretation Filtering**
     - **Property 22: Interpretation Cascade Deletion**
     - **Validates: Requirements 6.1-6.7, 7.1-7.4**
 
-- [ ] 9. 实现 PromptService
+- [x] 9. 实现 PromptService
   - [x] 9.1 实现提示词版本管理
     - 创建 create_prompt() 函数
     - 创建 get_active_prompt() 函数获取激活版本
@@ -136,15 +136,15 @@
     - 创建 list_prompts() 函数
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
   
-  - [ ] 9.2 编写 PromptService 属性测试
+  - [x] 9.2 编写 PromptService 属性测试
     - **Property 23: Prompt Activation Exclusivity**
     - **Validates: Requirements 8.3, 8.4**
 
-- [ ] 10. Checkpoint - 确保所有服务测试通过
+- [x] 10. Checkpoint - 确保所有服务测试通过
   - 运行所有测试，确保 InterpretationService 和 PromptService 正常工作
   - 如有问题请询问用户
 
-- [-] 11. 实现 MigrationService
+- [x] 11. 实现 MigrationService
   - [x] 11.1 实现数据迁移逻辑
     - 创建 MigrationService 类
     - 实现 migrate_books() 迁移书籍数据（添加默认值）
@@ -154,7 +154,7 @@
     - 实现 run_migration() 主入口（幂等）
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
   
-  - [ ] 11.2 编写 MigrationService 属性测试
+  - [x] 11.2 编写 MigrationService 属性测试
     - **Property 24: Migration Data Preservation**
     - **Property 25: Migration Idempotency**
     - **Property 26: Settings Functionality Preservation**
@@ -199,23 +199,23 @@
     - GET /api/admin/migrate/status - 获取迁移状态
     - _Requirements: 9.1-9.6_
 
-- [ ] 13. Checkpoint - 确保所有 API 测试通过
+- [x] 13. Checkpoint - 确保所有 API 测试通过
   - 运行所有测试，确保 API 路由正常工作
   - 如有问题请询问用户
 
-- [ ] 14. 集成测试和最终验证
-  - [ ] 14.1 编写端到端集成测试
+- [x] 14. 集成测试和最终验证
+  - [x] 14.1 编写端到端集成测试
     - 测试完整的书籍上传→解析→翻译→解读流程
     - 测试用户注册→配置→个性化解读流程
     - 测试书籍重构和映射追踪
     - _Requirements: All_
   
-  - [ ] 14.2 编写迁移集成测试
+  - [x] 14.2 编写迁移集成测试
     - 使用现有数据库测试迁移
     - 验证数据完整性
     - _Requirements: 9.1-9.6, 10.1-10.3_
 
-- [ ] 15. Final Checkpoint - 确保所有测试通过
+- [x] 15. Final Checkpoint - 确保所有测试通过
   - 运行完整测试套件
   - 验证所有需求已实现
   - 如有问题请询问用户
