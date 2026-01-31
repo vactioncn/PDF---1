@@ -127,6 +127,7 @@ def create_app() -> Flask:
 
     def init_db() -> None:
         with engine.begin() as conn:
+            # ==================== 系统配置表（保留） ====================
             conn.execute(
                 text(
                     """
@@ -139,39 +140,184 @@ def create_app() -> Flask:
                 )
             )
 
+            # ==================== 用户表（新增） ====================
             conn.execute(
                 text(
                     """
-                    CREATE TABLE IF NOT EXISTS interpretations (
+                    CREATE TABLE IF NOT EXISTS users (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        chapter_title TEXT NOT NULL,
-                        user_profession TEXT NOT NULL,
-                        reading_goal TEXT NOT NULL,
-                        focus TEXT NOT NULL,
-                        density TEXT NOT NULL,
-                        chapter_text TEXT NOT NULL,
-                        master_prompt TEXT NOT NULL,
-                        result_json TEXT NOT NULL,
-                        created_at TEXT NOT NULL
+                        username TEXT NOT NULL UNIQUE,
+                        email TEXT UNIQUE,
+                        password_hash TEXT NOT NULL,
+                        profession TEXT,
+                        reading_goal TEXT,
+                        focus_areas TEXT,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT
                     )
                     """
                 )
             )
 
+            # ==================== 书籍表（重构） ====================
             conn.execute(
                 text(
                     """
                     CREATE TABLE IF NOT EXISTS books (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         filename TEXT NOT NULL,
-                        chapter_count INTEGER NOT NULL,
-                        total_word_count INTEGER NOT NULL,
+                        source_type TEXT NOT NULL DEFAULT 'upload',
+                        parent_book_id INTEGER,
+                        language TEXT DEFAULT 'zh',
+                        status TEXT DEFAULT 'parsing',
+                        chapter_count INTEGER NOT NULL DEFAULT 0,
+                        total_word_count INTEGER NOT NULL DEFAULT 0,
+                        file_path TEXT,
+                        file_hash TEXT,
+                        created_at TEXT NOT NULL,
+                        FOREIGN KEY (parent_book_id) REFERENCES books(id) ON DELETE SET NULL
+                    )
+                    """
+                )
+            )
+            # 为现有 books 表添加新字段（向后兼容）
+            add_column_if_missing(conn, "books", "source_type", "source_type TEXT NOT NULL DEFAULT 'upload'")
+            add_column_if_missing(conn, "books", "parent_book_id", "parent_book_id INTEGER")
+            add_column_if_missing(conn, "books", "language", "language TEXT DEFAULT 'zh'")
+            add_column_if_missing(conn, "books", "status", "status TEXT DEFAULT 'ready'")
+            add_column_if_missing(conn, "books", "file_path", "file_path TEXT")
+            add_column_if_missing(conn, "books", "file_hash", "file_hash TEXT")
+
+            # ==================== 章节表（新结构） ====================
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS chapters (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        book_id INTEGER NOT NULL,
+                        chapter_index INTEGER NOT NULL,
+                        title TEXT NOT NULL,
+                        title_zh TEXT,
+                        summary TEXT,
+                        word_count INTEGER NOT NULL DEFAULT 0,
+                        is_translated INTEGER DEFAULT 0,
+                        created_at TEXT NOT NULL,
+                        translated_at TEXT,
+                        FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+                    )
+                    """
+                )
+            )
+
+            # ==================== 章节内容表（分表优化） ====================
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS chapter_contents (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        chapter_id INTEGER NOT NULL UNIQUE,
+                        content TEXT,
+                        content_zh TEXT,
+                        FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
+                    )
+                    """
+                )
+            )
+
+            # ==================== 重构映射表（新增） ====================
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS chapter_mappings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        new_book_id INTEGER NOT NULL,
+                        new_chapter_id INTEGER NOT NULL,
+                        source_book_id INTEGER,
+                        source_chapter_ids TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        FOREIGN KEY (new_book_id) REFERENCES books(id) ON DELETE CASCADE,
+                        FOREIGN KEY (new_chapter_id) REFERENCES chapters(id) ON DELETE CASCADE,
+                        FOREIGN KEY (source_book_id) REFERENCES books(id) ON DELETE SET NULL
+                    )
+                    """
+                )
+            )
+
+            # ==================== 解读表（重构） ====================
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS interpretations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        book_id INTEGER,
+                        chapter_id INTEGER,
+                        user_id INTEGER,
+                        interpretation_type TEXT NOT NULL DEFAULT 'standard',
+                        prompt_version TEXT,
+                        prompt_text TEXT,
+                        thinking_process TEXT,
+                        word_count INTEGER DEFAULT 0,
+                        model_used TEXT,
+                        chapter_title TEXT NOT NULL,
+                        user_profession TEXT,
+                        reading_goal TEXT,
+                        focus TEXT,
+                        density TEXT,
+                        chapter_text TEXT,
+                        master_prompt TEXT,
+                        result_json TEXT,
+                        created_at TEXT NOT NULL,
+                        FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+                        FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                    """
+                )
+            )
+            # 为现有 interpretations 表添加新字段（向后兼容）
+            add_column_if_missing(conn, "interpretations", "book_id", "book_id INTEGER")
+            add_column_if_missing(conn, "interpretations", "chapter_id", "chapter_id INTEGER")
+            add_column_if_missing(conn, "interpretations", "user_id", "user_id INTEGER")
+            add_column_if_missing(conn, "interpretations", "interpretation_type", "interpretation_type TEXT NOT NULL DEFAULT 'standard'")
+            add_column_if_missing(conn, "interpretations", "prompt_version", "prompt_version TEXT")
+            add_column_if_missing(conn, "interpretations", "prompt_text", "prompt_text TEXT")
+            add_column_if_missing(conn, "interpretations", "thinking_process", "thinking_process TEXT")
+            add_column_if_missing(conn, "interpretations", "word_count", "word_count INTEGER DEFAULT 0")
+            add_column_if_missing(conn, "interpretations", "model_used", "model_used TEXT")
+
+            # ==================== 解读内容表（分表优化） ====================
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS interpretation_contents (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        interpretation_id INTEGER NOT NULL UNIQUE,
+                        content TEXT NOT NULL,
+                        FOREIGN KEY (interpretation_id) REFERENCES interpretations(id) ON DELETE CASCADE
+                    )
+                    """
+                )
+            )
+
+            # ==================== 提示词版本表（新增） ====================
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS prompts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        type TEXT NOT NULL,
+                        version TEXT NOT NULL,
+                        content TEXT NOT NULL,
+                        is_active INTEGER DEFAULT 1,
                         created_at TEXT NOT NULL
                     )
                     """
                 )
             )
 
+            # ==================== 保留旧表（向后兼容） ====================
+            # chapter_summaries 表保留，用于数据迁移
             conn.execute(
                 text(
                     """
@@ -191,6 +337,7 @@ def create_app() -> Flask:
                 )
             )
 
+            # 检查并升级 chapter_summaries 表结构
             info = conn.execute(text("PRAGMA table_info(chapter_summaries)")).fetchall()
             existing_columns = [row[1] for row in info]
             required_columns = [
@@ -247,8 +394,1054 @@ def create_app() -> Flask:
                         )
                     )
                 conn.execute(text("DROP TABLE chapter_summaries_backup"))
+            
+            # ==================== 创建 uploads 目录 ====================
+            uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir)
 
     init_db()
+
+    # ==================== FileStorageService ====================
+    class FileStorageService:
+        """文件存储服务，负责 PDF 文件的存储和去重"""
+        UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+        
+        @staticmethod
+        def calculate_hash(file_data: bytes) -> str:
+            """计算文件 MD5 哈希"""
+            return hashlib.md5(file_data).hexdigest()
+        
+        @staticmethod
+        def save_file(file_data: bytes, filename: str) -> Tuple[str, str]:
+            """保存文件，返回 (file_path, file_hash)"""
+            file_hash = FileStorageService.calculate_hash(file_data)
+            # 使用哈希值作为文件名前缀，避免重名
+            safe_filename = f"{file_hash}_{filename}"
+            file_path = os.path.join(FileStorageService.UPLOAD_DIR, safe_filename)
+            
+            # 如果文件已存在，直接返回
+            if os.path.exists(file_path):
+                return file_path, file_hash
+            
+            # 确保目录存在
+            if not os.path.exists(FileStorageService.UPLOAD_DIR):
+                os.makedirs(FileStorageService.UPLOAD_DIR)
+            
+            # 保存文件
+            with open(file_path, 'wb') as f:
+                f.write(file_data)
+            
+            return file_path, file_hash
+        
+        @staticmethod
+        def delete_file(file_path: str) -> bool:
+            """删除文件"""
+            try:
+                if file_path and os.path.exists(file_path):
+                    os.remove(file_path)
+                    return True
+                return False
+            except Exception as e:
+                print(f"删除文件失败: {e}", flush=True)
+                return False
+        
+        @staticmethod
+        def file_exists(file_hash: str) -> bool:
+            """检查文件是否已存在（通过哈希）"""
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text("SELECT id FROM books WHERE file_hash = :hash LIMIT 1"),
+                    {"hash": file_hash}
+                ).scalar_one_or_none()
+            return result is not None
+        
+        @staticmethod
+        def get_book_by_hash(file_hash: str) -> Optional[int]:
+            """通过文件哈希获取书籍ID"""
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text("SELECT id FROM books WHERE file_hash = :hash LIMIT 1"),
+                    {"hash": file_hash}
+                ).scalar_one_or_none()
+            return result
+
+    # ==================== UserService ====================
+    class UserService:
+        """用户服务，负责用户注册、认证和配置文件管理"""
+        
+        @staticmethod
+        def create_user(username: str, password: str, email: Optional[str] = None) -> int:
+            """创建新用户，返回 user_id"""
+            from werkzeug.security import generate_password_hash
+            password_hash = generate_password_hash(password)
+            
+            with engine.begin() as conn:
+                cursor = conn.execute(
+                    text(
+                        """
+                        INSERT INTO users (username, email, password_hash, created_at)
+                        VALUES (:username, :email, :password_hash, :created_at)
+                        """
+                    ),
+                    {
+                        "username": username,
+                        "email": email,
+                        "password_hash": password_hash,
+                        "created_at": datetime.utcnow().isoformat(),
+                    },
+                )
+                return cursor.lastrowid
+        
+        @staticmethod
+        def authenticate(username: str, password: str) -> Optional[Dict]:
+            """验证用户凭据，返回用户信息或 None"""
+            from werkzeug.security import check_password_hash
+            
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text("SELECT * FROM users WHERE username = :username"),
+                    {"username": username}
+                ).mappings().first()
+            
+            if result and check_password_hash(result["password_hash"], password):
+                return dict(result)
+            return None
+        
+        @staticmethod
+        def update_profile(user_id: int, profession: str = None, 
+                          reading_goal: str = None, focus_areas: List[str] = None) -> bool:
+            """更新用户配置文件"""
+            updates = []
+            params = {"user_id": user_id, "updated_at": datetime.utcnow().isoformat()}
+            
+            if profession is not None:
+                updates.append("profession = :profession")
+                params["profession"] = profession
+            if reading_goal is not None:
+                updates.append("reading_goal = :reading_goal")
+                params["reading_goal"] = reading_goal
+            if focus_areas is not None:
+                updates.append("focus_areas = :focus_areas")
+                params["focus_areas"] = json.dumps(focus_areas, ensure_ascii=False)
+            
+            if not updates:
+                return False
+            
+            updates.append("updated_at = :updated_at")
+            
+            with engine.begin() as conn:
+                conn.execute(
+                    text(f"UPDATE users SET {', '.join(updates)} WHERE id = :user_id"),
+                    params
+                )
+            return True
+        
+        @staticmethod
+        def get_user(user_id: int) -> Optional[Dict]:
+            """获取用户信息"""
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text("SELECT * FROM users WHERE id = :user_id"),
+                    {"user_id": user_id}
+                ).mappings().first()
+            
+            if result:
+                user = dict(result)
+                # 解析 focus_areas JSON
+                if user.get("focus_areas"):
+                    try:
+                        user["focus_areas"] = json.loads(user["focus_areas"])
+                    except:
+                        user["focus_areas"] = []
+                return user
+            return None
+        
+        @staticmethod
+        def delete_user(user_id: int) -> bool:
+            """删除用户（解读中的 user_id 设为 NULL）"""
+            with engine.begin() as conn:
+                # 先将相关解读的 user_id 设为 NULL
+                conn.execute(
+                    text("UPDATE interpretations SET user_id = NULL WHERE user_id = :user_id"),
+                    {"user_id": user_id}
+                )
+                # 删除用户
+                conn.execute(
+                    text("DELETE FROM users WHERE id = :user_id"),
+                    {"user_id": user_id}
+                )
+            return True
+
+    # ==================== BookService ====================
+    class BookService:
+        """书籍服务，负责书籍的创建、状态管理和查询"""
+        
+        VALID_STATUS = ['parsing', 'translating', 'ready']
+        VALID_SOURCE_TYPE = ['upload', 'restructured']
+        VALID_LANGUAGE = ['zh', 'en', 'mixed']
+        
+        @staticmethod
+        def create_book(filename: str, source_type: str = 'upload',
+                       parent_book_id: Optional[int] = None, language: str = 'zh',
+                       file_path: Optional[str] = None, file_hash: Optional[str] = None,
+                       chapter_count: int = 0, total_word_count: int = 0) -> int:
+            """创建书籍记录，返回 book_id"""
+            if source_type not in BookService.VALID_SOURCE_TYPE:
+                raise ValueError(f"Invalid source_type: {source_type}")
+            if language not in BookService.VALID_LANGUAGE:
+                raise ValueError(f"Invalid language: {language}")
+            
+            with engine.begin() as conn:
+                cursor = conn.execute(
+                    text(
+                        """
+                        INSERT INTO books (filename, source_type, parent_book_id, language, 
+                                          status, chapter_count, total_word_count, 
+                                          file_path, file_hash, created_at)
+                        VALUES (:filename, :source_type, :parent_book_id, :language,
+                               'parsing', :chapter_count, :total_word_count,
+                               :file_path, :file_hash, :created_at)
+                        """
+                    ),
+                    {
+                        "filename": filename,
+                        "source_type": source_type,
+                        "parent_book_id": parent_book_id,
+                        "language": language,
+                        "chapter_count": chapter_count,
+                        "total_word_count": total_word_count,
+                        "file_path": file_path,
+                        "file_hash": file_hash,
+                        "created_at": datetime.utcnow().isoformat(),
+                    },
+                )
+                return cursor.lastrowid
+        
+        @staticmethod
+        def update_status(book_id: int, status: str) -> bool:
+            """更新书籍状态"""
+            if status not in BookService.VALID_STATUS:
+                raise ValueError(f"Invalid status: {status}")
+            
+            with engine.begin() as conn:
+                conn.execute(
+                    text("UPDATE books SET status = :status WHERE id = :book_id"),
+                    {"status": status, "book_id": book_id}
+                )
+            return True
+        
+        @staticmethod
+        def update_counts(book_id: int, chapter_count: int = None, 
+                         total_word_count: int = None) -> bool:
+            """更新书籍的章节数和字数"""
+            updates = []
+            params = {"book_id": book_id}
+            
+            if chapter_count is not None:
+                updates.append("chapter_count = :chapter_count")
+                params["chapter_count"] = chapter_count
+            if total_word_count is not None:
+                updates.append("total_word_count = :total_word_count")
+                params["total_word_count"] = total_word_count
+            
+            if not updates:
+                return False
+            
+            with engine.begin() as conn:
+                conn.execute(
+                    text(f"UPDATE books SET {', '.join(updates)} WHERE id = :book_id"),
+                    params
+                )
+            return True
+        
+        @staticmethod
+        def get_book(book_id: int) -> Optional[Dict]:
+            """获取书籍详情"""
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text("SELECT * FROM books WHERE id = :book_id"),
+                    {"book_id": book_id}
+                ).mappings().first()
+            return dict(result) if result else None
+        
+        @staticmethod
+        def list_books(status: Optional[str] = None, source_type: Optional[str] = None,
+                      page: int = 1, per_page: int = 20) -> Dict:
+            """列出书籍，支持筛选和分页"""
+            conditions = []
+            params = {}
+            
+            if status:
+                conditions.append("status = :status")
+                params["status"] = status
+            if source_type:
+                conditions.append("source_type = :source_type")
+                params["source_type"] = source_type
+            
+            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            
+            with engine.begin() as conn:
+                # 获取总数
+                count_result = conn.execute(
+                    text(f"SELECT COUNT(*) FROM books {where_clause}"),
+                    params
+                ).scalar()
+                
+                # 获取分页数据
+                offset = (page - 1) * per_page
+                params["limit"] = per_page
+                params["offset"] = offset
+                
+                results = conn.execute(
+                    text(f"""
+                        SELECT * FROM books {where_clause}
+                        ORDER BY created_at DESC
+                        LIMIT :limit OFFSET :offset
+                    """),
+                    params
+                ).mappings().all()
+            
+            return {
+                "books": [dict(r) for r in results],
+                "total": count_result,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": (count_result + per_page - 1) // per_page
+            }
+        
+        @staticmethod
+        def delete_book(book_id: int) -> bool:
+            """删除书籍（级联删除章节、解读和文件）"""
+            # 先获取文件路径
+            book = BookService.get_book(book_id)
+            if not book:
+                return False
+            
+            # 删除关联文件
+            if book.get("file_path"):
+                FileStorageService.delete_file(book["file_path"])
+            
+            # 删除数据库记录（外键级联会自动删除章节和解读）
+            with engine.begin() as conn:
+                conn.execute(
+                    text("DELETE FROM books WHERE id = :book_id"),
+                    {"book_id": book_id}
+                )
+            return True
+        
+        @staticmethod
+        def find_by_hash(file_hash: str) -> Optional[int]:
+            """通过文件哈希查找书籍，返回 book_id 或 None"""
+            return FileStorageService.get_book_by_hash(file_hash)
+
+    # ==================== ChapterService ====================
+    class ChapterService:
+        """章节服务，负责章节的创建、翻译状态管理和内容存储"""
+        
+        @staticmethod
+        def create_chapter(book_id: int, chapter_index: int, title: str,
+                          content: str, word_count: int = 0,
+                          title_zh: Optional[str] = None,
+                          content_zh: Optional[str] = None,
+                          summary: Optional[str] = None) -> int:
+            """创建章节及其内容，返回 chapter_id"""
+            is_translated = 1 if (title_zh and content_zh) else 0
+            translated_at = datetime.utcnow().isoformat() if is_translated else None
+            
+            with engine.begin() as conn:
+                # 创建章节元数据
+                cursor = conn.execute(
+                    text(
+                        """
+                        INSERT INTO chapters (book_id, chapter_index, title, title_zh,
+                                            summary, word_count, is_translated,
+                                            created_at, translated_at)
+                        VALUES (:book_id, :chapter_index, :title, :title_zh,
+                               :summary, :word_count, :is_translated,
+                               :created_at, :translated_at)
+                        """
+                    ),
+                    {
+                        "book_id": book_id,
+                        "chapter_index": chapter_index,
+                        "title": title,
+                        "title_zh": title_zh,
+                        "summary": summary,
+                        "word_count": word_count,
+                        "is_translated": is_translated,
+                        "created_at": datetime.utcnow().isoformat(),
+                        "translated_at": translated_at,
+                    },
+                )
+                chapter_id = cursor.lastrowid
+                
+                # 创建章节内容
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO chapter_contents (chapter_id, content, content_zh)
+                        VALUES (:chapter_id, :content, :content_zh)
+                        """
+                    ),
+                    {
+                        "chapter_id": chapter_id,
+                        "content": content,
+                        "content_zh": content_zh,
+                    },
+                )
+                
+                return chapter_id
+        
+        @staticmethod
+        def update_translation(chapter_id: int, title_zh: str,
+                              content_zh: str, summary: Optional[str] = None) -> bool:
+            """更新章节翻译内容"""
+            with engine.begin() as conn:
+                # 更新章节元数据
+                conn.execute(
+                    text(
+                        """
+                        UPDATE chapters SET 
+                            title_zh = :title_zh,
+                            summary = COALESCE(:summary, summary),
+                            is_translated = 1,
+                            translated_at = :translated_at
+                        WHERE id = :chapter_id
+                        """
+                    ),
+                    {
+                        "chapter_id": chapter_id,
+                        "title_zh": title_zh,
+                        "summary": summary,
+                        "translated_at": datetime.utcnow().isoformat(),
+                    },
+                )
+                
+                # 更新章节内容
+                conn.execute(
+                    text(
+                        """
+                        UPDATE chapter_contents SET content_zh = :content_zh
+                        WHERE chapter_id = :chapter_id
+                        """
+                    ),
+                    {
+                        "chapter_id": chapter_id,
+                        "content_zh": content_zh,
+                    },
+                )
+            return True
+        
+        @staticmethod
+        def get_chapter(chapter_id: int, include_content: bool = False) -> Optional[Dict]:
+            """获取章节信息，可选包含内容"""
+            with engine.begin() as conn:
+                if include_content:
+                    result = conn.execute(
+                        text(
+                            """
+                            SELECT c.*, cc.content, cc.content_zh
+                            FROM chapters c
+                            LEFT JOIN chapter_contents cc ON c.id = cc.chapter_id
+                            WHERE c.id = :chapter_id
+                            """
+                        ),
+                        {"chapter_id": chapter_id}
+                    ).mappings().first()
+                else:
+                    result = conn.execute(
+                        text("SELECT * FROM chapters WHERE id = :chapter_id"),
+                        {"chapter_id": chapter_id}
+                    ).mappings().first()
+            return dict(result) if result else None
+        
+        @staticmethod
+        def list_chapters(book_id: int, include_content: bool = False) -> List[Dict]:
+            """列出书籍的所有章节"""
+            with engine.begin() as conn:
+                if include_content:
+                    results = conn.execute(
+                        text(
+                            """
+                            SELECT c.*, cc.content, cc.content_zh
+                            FROM chapters c
+                            LEFT JOIN chapter_contents cc ON c.id = cc.chapter_id
+                            WHERE c.book_id = :book_id
+                            ORDER BY c.chapter_index
+                            """
+                        ),
+                        {"book_id": book_id}
+                    ).mappings().all()
+                else:
+                    results = conn.execute(
+                        text(
+                            """
+                            SELECT * FROM chapters WHERE book_id = :book_id
+                            ORDER BY chapter_index
+                            """
+                        ),
+                        {"book_id": book_id}
+                    ).mappings().all()
+            return [dict(r) for r in results]
+        
+        @staticmethod
+        def delete_chapter(chapter_id: int) -> bool:
+            """删除章节（级联删除内容）"""
+            with engine.begin() as conn:
+                conn.execute(
+                    text("DELETE FROM chapters WHERE id = :chapter_id"),
+                    {"chapter_id": chapter_id}
+                )
+            return True
+        
+        @staticmethod
+        def create_mapping(new_book_id: int, new_chapter_id: int,
+                          source_book_id: int, source_chapter_ids: List[int]) -> int:
+            """创建重构映射"""
+            with engine.begin() as conn:
+                cursor = conn.execute(
+                    text(
+                        """
+                        INSERT INTO chapter_mappings (new_book_id, new_chapter_id,
+                                                     source_book_id, source_chapter_ids, created_at)
+                        VALUES (:new_book_id, :new_chapter_id, :source_book_id,
+                               :source_chapter_ids, :created_at)
+                        """
+                    ),
+                    {
+                        "new_book_id": new_book_id,
+                        "new_chapter_id": new_chapter_id,
+                        "source_book_id": source_book_id,
+                        "source_chapter_ids": json.dumps(source_chapter_ids),
+                        "created_at": datetime.utcnow().isoformat(),
+                    },
+                )
+                return cursor.lastrowid
+        
+        @staticmethod
+        def get_source_chapters(new_chapter_id: int) -> Optional[Dict]:
+            """获取重构章节的源章节信息"""
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text(
+                        """
+                        SELECT * FROM chapter_mappings
+                        WHERE new_chapter_id = :new_chapter_id
+                        """
+                    ),
+                    {"new_chapter_id": new_chapter_id}
+                ).mappings().first()
+            
+            if result:
+                mapping = dict(result)
+                mapping["source_chapter_ids"] = json.loads(mapping["source_chapter_ids"])
+                return mapping
+            return None
+
+    # ==================== InterpretationService ====================
+    class InterpretationService:
+        """解读服务，负责解读的创建、查询和关联管理"""
+        
+        VALID_TYPES = ['standard', 'personalized']
+        
+        @staticmethod
+        def create_interpretation(book_id: int, content: str,
+                                 chapter_id: Optional[int] = None,
+                                 user_id: Optional[int] = None,
+                                 interpretation_type: str = 'standard',
+                                 prompt_version: Optional[str] = None,
+                                 prompt_text: Optional[str] = None,
+                                 thinking_process: Optional[str] = None,
+                                 model_used: Optional[str] = None,
+                                 chapter_title: str = "",
+                                 user_profession: str = "",
+                                 reading_goal: str = "",
+                                 focus: str = "",
+                                 density: str = "") -> int:
+            """创建解读及其内容，返回 interpretation_id"""
+            if interpretation_type not in InterpretationService.VALID_TYPES:
+                raise ValueError(f"Invalid interpretation_type: {interpretation_type}")
+            
+            word_count = len(content.replace(" ", "").replace("\n", "")) if content else 0
+            
+            with engine.begin() as conn:
+                # 创建解读元数据
+                cursor = conn.execute(
+                    text(
+                        """
+                        INSERT INTO interpretations (book_id, chapter_id, user_id,
+                                                    interpretation_type, prompt_version,
+                                                    prompt_text, thinking_process,
+                                                    word_count, model_used,
+                                                    chapter_title, user_profession,
+                                                    reading_goal, focus, density,
+                                                    created_at)
+                        VALUES (:book_id, :chapter_id, :user_id,
+                               :interpretation_type, :prompt_version,
+                               :prompt_text, :thinking_process,
+                               :word_count, :model_used,
+                               :chapter_title, :user_profession,
+                               :reading_goal, :focus, :density,
+                               :created_at)
+                        """
+                    ),
+                    {
+                        "book_id": book_id,
+                        "chapter_id": chapter_id,
+                        "user_id": user_id,
+                        "interpretation_type": interpretation_type,
+                        "prompt_version": prompt_version,
+                        "prompt_text": prompt_text,
+                        "thinking_process": thinking_process,
+                        "word_count": word_count,
+                        "model_used": model_used,
+                        "chapter_title": chapter_title,
+                        "user_profession": user_profession,
+                        "reading_goal": reading_goal,
+                        "focus": focus,
+                        "density": density,
+                        "created_at": datetime.utcnow().isoformat(),
+                    },
+                )
+                interpretation_id = cursor.lastrowid
+                
+                # 创建解读内容
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO interpretation_contents (interpretation_id, content)
+                        VALUES (:interpretation_id, :content)
+                        """
+                    ),
+                    {
+                        "interpretation_id": interpretation_id,
+                        "content": content,
+                    },
+                )
+                
+                return interpretation_id
+        
+        @staticmethod
+        def get_interpretation(interpretation_id: int, include_content: bool = True) -> Optional[Dict]:
+            """获取解读信息"""
+            with engine.begin() as conn:
+                if include_content:
+                    result = conn.execute(
+                        text(
+                            """
+                            SELECT i.*, ic.content
+                            FROM interpretations i
+                            LEFT JOIN interpretation_contents ic ON i.id = ic.interpretation_id
+                            WHERE i.id = :interpretation_id
+                            """
+                        ),
+                        {"interpretation_id": interpretation_id}
+                    ).mappings().first()
+                else:
+                    result = conn.execute(
+                        text("SELECT * FROM interpretations WHERE id = :interpretation_id"),
+                        {"interpretation_id": interpretation_id}
+                    ).mappings().first()
+            return dict(result) if result else None
+        
+        @staticmethod
+        def list_interpretations(book_id: Optional[int] = None,
+                                chapter_id: Optional[int] = None,
+                                user_id: Optional[int] = None,
+                                interpretation_type: Optional[str] = None,
+                                page: int = 1, per_page: int = 20) -> Dict:
+            """列出解读，支持多条件筛选"""
+            conditions = []
+            params = {}
+            
+            if book_id is not None:
+                conditions.append("book_id = :book_id")
+                params["book_id"] = book_id
+            if chapter_id is not None:
+                conditions.append("chapter_id = :chapter_id")
+                params["chapter_id"] = chapter_id
+            if user_id is not None:
+                conditions.append("user_id = :user_id")
+                params["user_id"] = user_id
+            if interpretation_type:
+                conditions.append("interpretation_type = :interpretation_type")
+                params["interpretation_type"] = interpretation_type
+            
+            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            
+            with engine.begin() as conn:
+                # 获取总数
+                count_result = conn.execute(
+                    text(f"SELECT COUNT(*) FROM interpretations {where_clause}"),
+                    params
+                ).scalar()
+                
+                # 获取分页数据
+                offset = (page - 1) * per_page
+                params["limit"] = per_page
+                params["offset"] = offset
+                
+                results = conn.execute(
+                    text(f"""
+                        SELECT * FROM interpretations {where_clause}
+                        ORDER BY created_at DESC
+                        LIMIT :limit OFFSET :offset
+                    """),
+                    params
+                ).mappings().all()
+            
+            return {
+                "interpretations": [dict(r) for r in results],
+                "total": count_result,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": (count_result + per_page - 1) // per_page
+            }
+        
+        @staticmethod
+        def delete_interpretation(interpretation_id: int) -> bool:
+            """删除解读（级联删除内容）"""
+            with engine.begin() as conn:
+                conn.execute(
+                    text("DELETE FROM interpretations WHERE id = :interpretation_id"),
+                    {"interpretation_id": interpretation_id}
+                )
+            return True
+
+    # ==================== PromptService ====================
+    class PromptService:
+        """提示词服务，负责提示词的版本管理"""
+        
+        VALID_TYPES = ['interpretation', 'restructure', 'translation', 'summary']
+        
+        @staticmethod
+        def create_prompt(name: str, prompt_type: str, version: str,
+                         content: str, is_active: bool = False) -> int:
+            """创建提示词版本，返回 prompt_id"""
+            if prompt_type not in PromptService.VALID_TYPES:
+                raise ValueError(f"Invalid prompt type: {prompt_type}")
+            
+            with engine.begin() as conn:
+                # 如果设为激活，先将同类型其他版本设为非激活
+                if is_active:
+                    conn.execute(
+                        text("UPDATE prompts SET is_active = 0 WHERE type = :type"),
+                        {"type": prompt_type}
+                    )
+                
+                cursor = conn.execute(
+                    text(
+                        """
+                        INSERT INTO prompts (name, type, version, content, is_active, created_at)
+                        VALUES (:name, :type, :version, :content, :is_active, :created_at)
+                        """
+                    ),
+                    {
+                        "name": name,
+                        "type": prompt_type,
+                        "version": version,
+                        "content": content,
+                        "is_active": 1 if is_active else 0,
+                        "created_at": datetime.utcnow().isoformat(),
+                    },
+                )
+                return cursor.lastrowid
+        
+        @staticmethod
+        def get_active_prompt(prompt_type: str) -> Optional[Dict]:
+            """获取指定类型的激活提示词"""
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text(
+                        """
+                        SELECT * FROM prompts
+                        WHERE type = :type AND is_active = 1
+                        LIMIT 1
+                        """
+                    ),
+                    {"type": prompt_type}
+                ).mappings().first()
+            return dict(result) if result else None
+        
+        @staticmethod
+        def set_active(prompt_id: int) -> bool:
+            """设置提示词为激活状态（同类型其他版本设为非激活）"""
+            with engine.begin() as conn:
+                # 获取提示词类型
+                result = conn.execute(
+                    text("SELECT type FROM prompts WHERE id = :prompt_id"),
+                    {"prompt_id": prompt_id}
+                ).scalar_one_or_none()
+                
+                if not result:
+                    return False
+                
+                prompt_type = result
+                
+                # 将同类型其他版本设为非激活
+                conn.execute(
+                    text("UPDATE prompts SET is_active = 0 WHERE type = :type"),
+                    {"type": prompt_type}
+                )
+                
+                # 设置当前版本为激活
+                conn.execute(
+                    text("UPDATE prompts SET is_active = 1 WHERE id = :prompt_id"),
+                    {"prompt_id": prompt_id}
+                )
+            return True
+        
+        @staticmethod
+        def list_prompts(prompt_type: Optional[str] = None) -> List[Dict]:
+            """列出提示词，可按类型筛选"""
+            with engine.begin() as conn:
+                if prompt_type:
+                    results = conn.execute(
+                        text(
+                            """
+                            SELECT * FROM prompts WHERE type = :type
+                            ORDER BY created_at DESC
+                            """
+                        ),
+                        {"type": prompt_type}
+                    ).mappings().all()
+                else:
+                    results = conn.execute(
+                        text("SELECT * FROM prompts ORDER BY type, created_at DESC")
+                    ).mappings().all()
+            return [dict(r) for r in results]
+
+    # ==================== MigrationService ====================
+    class MigrationService:
+        """数据迁移服务，负责从旧表结构迁移到新表结构"""
+        
+        @staticmethod
+        def run_migration() -> Dict[str, Any]:
+            """执行数据迁移，返回迁移结果统计"""
+            results = {
+                "books_migrated": 0,
+                "chapters_migrated": 0,
+                "interpretations_migrated": 0,
+                "interpretations_unmatched": [],
+                "errors": []
+            }
+            
+            try:
+                # 1. 迁移书籍数据（添加默认值）
+                results["books_migrated"] = MigrationService.migrate_books()
+                
+                # 2. 迁移章节数据
+                results["chapters_migrated"] = MigrationService.migrate_chapters()
+                
+                # 3. 迁移解读数据
+                migrated, unmatched = MigrationService.migrate_interpretations()
+                results["interpretations_migrated"] = migrated
+                results["interpretations_unmatched"] = unmatched
+                
+                # 4. 创建上传目录
+                MigrationService.create_upload_directory()
+                
+            except Exception as e:
+                results["errors"].append(str(e))
+            
+            return results
+        
+        @staticmethod
+        def migrate_books() -> int:
+            """迁移书籍数据，返回迁移数量"""
+            with engine.begin() as conn:
+                # 检查是否有需要迁移的书籍（没有 source_type 或 status 的）
+                result = conn.execute(
+                    text(
+                        """
+                        UPDATE books SET 
+                            source_type = COALESCE(source_type, 'upload'),
+                            language = COALESCE(language, 'zh'),
+                            status = COALESCE(status, 'ready')
+                        WHERE source_type IS NULL OR language IS NULL OR status IS NULL
+                        """
+                    )
+                )
+                return result.rowcount
+        
+        @staticmethod
+        def migrate_chapters() -> int:
+            """迁移章节数据（从 chapter_summaries 拆分到 chapters 和 chapter_contents），返回迁移数量"""
+            migrated_count = 0
+            
+            with engine.begin() as conn:
+                # 检查 chapter_summaries 表是否存在
+                tables = conn.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table' AND name='chapter_summaries'")
+                ).fetchall()
+                
+                if not tables:
+                    return 0
+                
+                # 获取所有 chapter_summaries 记录
+                old_chapters = conn.execute(
+                    text("SELECT * FROM chapter_summaries ORDER BY book_id, id")
+                ).mappings().all()
+                
+                # 按 book_id 分组，计算 chapter_index
+                book_chapter_counts = {}
+                
+                for old_chapter in old_chapters:
+                    book_id = old_chapter.get("book_id")
+                    
+                    # 检查是否已迁移（通过 title 和 book_id 匹配）
+                    existing = conn.execute(
+                        text(
+                            """
+                            SELECT id FROM chapters 
+                            WHERE book_id = :book_id AND title = :title
+                            LIMIT 1
+                            """
+                        ),
+                        {"book_id": book_id, "title": old_chapter["chapter_title"]}
+                    ).scalar_one_or_none()
+                    
+                    if existing:
+                        continue  # 已迁移，跳过
+                    
+                    # 计算 chapter_index
+                    if book_id not in book_chapter_counts:
+                        # 获取该书籍已有的最大 chapter_index
+                        max_index = conn.execute(
+                            text("SELECT MAX(chapter_index) FROM chapters WHERE book_id = :book_id"),
+                            {"book_id": book_id}
+                        ).scalar() or 0
+                        book_chapter_counts[book_id] = max_index
+                    
+                    book_chapter_counts[book_id] += 1
+                    chapter_index = book_chapter_counts[book_id]
+                    
+                    # 判断是否已翻译
+                    has_translation = bool(old_chapter.get("chapter_title_zh") and 
+                                          old_chapter.get("chapter_content_zh"))
+                    
+                    # 创建新章节记录
+                    cursor = conn.execute(
+                        text(
+                            """
+                            INSERT INTO chapters (book_id, chapter_index, title, title_zh,
+                                                summary, word_count, is_translated,
+                                                created_at, translated_at)
+                            VALUES (:book_id, :chapter_index, :title, :title_zh,
+                                   :summary, :word_count, :is_translated,
+                                   :created_at, :translated_at)
+                            """
+                        ),
+                        {
+                            "book_id": book_id,
+                            "chapter_index": chapter_index,
+                            "title": old_chapter["chapter_title"],
+                            "title_zh": old_chapter.get("chapter_title_zh"),
+                            "summary": old_chapter.get("summary", ""),
+                            "word_count": old_chapter.get("word_count", 0),
+                            "is_translated": 1 if has_translation else 0,
+                            "created_at": old_chapter.get("created_at", datetime.utcnow().isoformat()),
+                            "translated_at": old_chapter.get("created_at") if has_translation else None,
+                        },
+                    )
+                    new_chapter_id = cursor.lastrowid
+                    
+                    # 创建章节内容记录
+                    conn.execute(
+                        text(
+                            """
+                            INSERT INTO chapter_contents (chapter_id, content, content_zh)
+                            VALUES (:chapter_id, :content, :content_zh)
+                            """
+                        ),
+                        {
+                            "chapter_id": new_chapter_id,
+                            "content": old_chapter.get("chapter_content", ""),
+                            "content_zh": old_chapter.get("chapter_content_zh"),
+                        },
+                    )
+                    
+                    migrated_count += 1
+            
+            return migrated_count
+        
+        @staticmethod
+        def migrate_interpretations() -> Tuple[int, List[int]]:
+            """迁移解读数据，返回 (成功数量, 未匹配的解读ID列表)"""
+            migrated_count = 0
+            unmatched_ids = []
+            
+            with engine.begin() as conn:
+                # 获取所有没有 book_id 的解读
+                old_interpretations = conn.execute(
+                    text("SELECT * FROM interpretations WHERE book_id IS NULL")
+                ).mappings().all()
+                
+                for old_interp in old_interpretations:
+                    chapter_title = old_interp.get("chapter_title", "")
+                    
+                    # 尝试通过 chapter_title 匹配书籍
+                    # 先在 chapters 表中查找
+                    match = conn.execute(
+                        text(
+                            """
+                            SELECT c.book_id, c.id as chapter_id
+                            FROM chapters c
+                            WHERE c.title = :title OR c.title_zh = :title
+                            LIMIT 1
+                            """
+                        ),
+                        {"title": chapter_title}
+                    ).mappings().first()
+                    
+                    if not match:
+                        # 在 chapter_summaries 表中查找
+                        match = conn.execute(
+                            text(
+                                """
+                                SELECT book_id FROM chapter_summaries
+                                WHERE chapter_title = :title OR chapter_title_zh = :title
+                                LIMIT 1
+                                """
+                            ),
+                            {"title": chapter_title}
+                        ).mappings().first()
+                    
+                    if match:
+                        book_id = match.get("book_id")
+                        chapter_id = match.get("chapter_id")
+                        
+                        # 更新解读记录
+                        conn.execute(
+                            text(
+                                """
+                                UPDATE interpretations SET 
+                                    book_id = :book_id,
+                                    chapter_id = :chapter_id
+                                WHERE id = :interp_id
+                                """
+                            ),
+                            {
+                                "book_id": book_id,
+                                "chapter_id": chapter_id,
+                                "interp_id": old_interp["id"]
+                            }
+                        )
+                        migrated_count += 1
+                    else:
+                        unmatched_ids.append(old_interp["id"])
+            
+            return migrated_count, unmatched_ids
+        
+        @staticmethod
+        def create_upload_directory() -> bool:
+            """创建 uploads 目录"""
+            uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir)
+                return True
+            return False
 
     def store_setting(key: str, value: str) -> None:
         with engine.begin() as conn:
@@ -6787,6 +7980,258 @@ D. ……
         except Exception as exc:
             print(f"分割章节出错: {exc}", flush=True)
             return jsonify({"error": f"分割失败: {str(exc)}"}), 500
+
+    # ==================== 新增 API 路由 ====================
+
+    # ---------- 用户管理 API ----------
+    @app.post("/api/users/register")
+    def register_user():
+        """用户注册"""
+        payload = request.get_json() or {}
+        username = payload.get("username", "").strip()
+        password = payload.get("password", "")
+        email = payload.get("email", "").strip() or None
+        
+        if not username or not password:
+            return jsonify({"error": "用户名和密码不能为空"}), 400
+        
+        if len(password) < 6:
+            return jsonify({"error": "密码长度至少6位"}), 400
+        
+        try:
+            user_id = UserService.create_user(username, password, email)
+            return jsonify({"success": True, "user_id": user_id})
+        except Exception as exc:
+            if "UNIQUE constraint failed" in str(exc):
+                return jsonify({"error": "用户名或邮箱已存在"}), 409
+            return jsonify({"error": f"注册失败: {str(exc)}"}), 500
+
+    @app.post("/api/users/login")
+    def login_user():
+        """用户登录"""
+        payload = request.get_json() or {}
+        username = payload.get("username", "").strip()
+        password = payload.get("password", "")
+        
+        if not username or not password:
+            return jsonify({"error": "用户名和密码不能为空"}), 400
+        
+        user = UserService.authenticate(username, password)
+        if user:
+            # 移除敏感信息
+            user.pop("password_hash", None)
+            return jsonify({"success": True, "user": user})
+        else:
+            return jsonify({"error": "用户名或密码错误"}), 401
+
+    @app.get("/api/users/<int:user_id>")
+    def get_user(user_id: int):
+        """获取用户信息"""
+        user = UserService.get_user(user_id)
+        if user:
+            user.pop("password_hash", None)
+            return jsonify({"success": True, "user": user})
+        else:
+            return jsonify({"error": "用户不存在"}), 404
+
+    @app.put("/api/users/<int:user_id>/profile")
+    def update_user_profile(user_id: int):
+        """更新用户配置"""
+        payload = request.get_json() or {}
+        
+        try:
+            UserService.update_profile(
+                user_id,
+                profession=payload.get("profession"),
+                reading_goal=payload.get("reading_goal"),
+                focus_areas=payload.get("focus_areas")
+            )
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": f"更新失败: {str(exc)}"}), 500
+
+    @app.delete("/api/users/<int:user_id>")
+    def delete_user(user_id: int):
+        """删除用户"""
+        try:
+            UserService.delete_user(user_id)
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": f"删除失败: {str(exc)}"}), 500
+
+    # ---------- 书籍状态管理 API ----------
+    @app.get("/api/admin/books/<int:book_id>/status")
+    def get_book_status(book_id: int):
+        """获取书籍状态"""
+        book = BookService.get_book(book_id)
+        if book:
+            return jsonify({
+                "success": True,
+                "book_id": book_id,
+                "status": book.get("status", "unknown"),
+                "source_type": book.get("source_type", "upload"),
+                "language": book.get("language", "zh")
+            })
+        else:
+            return jsonify({"error": "书籍不存在"}), 404
+
+    @app.put("/api/admin/books/<int:book_id>/status")
+    def update_book_status(book_id: int):
+        """更新书籍状态"""
+        payload = request.get_json() or {}
+        status = payload.get("status")
+        
+        if not status:
+            return jsonify({"error": "status 不能为空"}), 400
+        
+        try:
+            BookService.update_status(book_id, status)
+            return jsonify({"success": True})
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception as exc:
+            return jsonify({"error": f"更新失败: {str(exc)}"}), 500
+
+    # ---------- 章节源映射 API ----------
+    @app.get("/api/admin/chapters/<int:chapter_id>/source")
+    def get_chapter_source(chapter_id: int):
+        """获取重构章节的源章节映射"""
+        mapping = ChapterService.get_source_chapters(chapter_id)
+        if mapping:
+            return jsonify({"success": True, "mapping": mapping})
+        else:
+            return jsonify({"success": True, "mapping": None, "message": "该章节没有源映射"})
+
+    # ---------- 解读管理 API ----------
+    @app.get("/api/interpretations")
+    def list_interpretations():
+        """列出解读，支持多条件筛选"""
+        book_id = request.args.get("book_id", type=int)
+        chapter_id = request.args.get("chapter_id", type=int)
+        user_id = request.args.get("user_id", type=int)
+        interpretation_type = request.args.get("type")
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 20, type=int)
+        
+        result = InterpretationService.list_interpretations(
+            book_id=book_id,
+            chapter_id=chapter_id,
+            user_id=user_id,
+            interpretation_type=interpretation_type,
+            page=page,
+            per_page=per_page
+        )
+        return jsonify(result)
+
+    @app.get("/api/interpretations/<int:interpretation_id>")
+    def get_interpretation(interpretation_id: int):
+        """获取解读详情"""
+        include_content = request.args.get("include_content", "true").lower() == "true"
+        interpretation = InterpretationService.get_interpretation(interpretation_id, include_content)
+        if interpretation:
+            return jsonify({"success": True, "interpretation": interpretation})
+        else:
+            return jsonify({"error": "解读不存在"}), 404
+
+    @app.delete("/api/interpretations/<int:interpretation_id>")
+    def delete_interpretation(interpretation_id: int):
+        """删除解读"""
+        try:
+            InterpretationService.delete_interpretation(interpretation_id)
+            return jsonify({"success": True})
+        except Exception as exc:
+            return jsonify({"error": f"删除失败: {str(exc)}"}), 500
+
+    # ---------- 提示词管理 API ----------
+    @app.post("/api/prompts")
+    def create_prompt():
+        """创建提示词版本"""
+        payload = request.get_json() or {}
+        name = payload.get("name", "").strip()
+        prompt_type = payload.get("type", "").strip()
+        version = payload.get("version", "").strip()
+        content = payload.get("content", "").strip()
+        is_active = payload.get("is_active", False)
+        
+        if not all([name, prompt_type, version, content]):
+            return jsonify({"error": "name, type, version, content 都不能为空"}), 400
+        
+        try:
+            prompt_id = PromptService.create_prompt(name, prompt_type, version, content, is_active)
+            return jsonify({"success": True, "prompt_id": prompt_id})
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Exception as exc:
+            return jsonify({"error": f"创建失败: {str(exc)}"}), 500
+
+    @app.get("/api/prompts")
+    def list_prompts():
+        """列出提示词"""
+        prompt_type = request.args.get("type")
+        prompts = PromptService.list_prompts(prompt_type)
+        return jsonify({"success": True, "prompts": prompts})
+
+    @app.get("/api/prompts/active/<prompt_type>")
+    def get_active_prompt(prompt_type: str):
+        """获取激活的提示词"""
+        prompt = PromptService.get_active_prompt(prompt_type)
+        if prompt:
+            return jsonify({"success": True, "prompt": prompt})
+        else:
+            return jsonify({"success": True, "prompt": None, "message": f"没有激活的 {prompt_type} 类型提示词"})
+
+    @app.put("/api/prompts/<int:prompt_id>/activate")
+    def activate_prompt(prompt_id: int):
+        """设置提示词为激活状态"""
+        try:
+            success = PromptService.set_active(prompt_id)
+            if success:
+                return jsonify({"success": True})
+            else:
+                return jsonify({"error": "提示词不存在"}), 404
+        except Exception as exc:
+            return jsonify({"error": f"激活失败: {str(exc)}"}), 500
+
+    # ---------- 数据迁移 API ----------
+    @app.post("/api/admin/migrate")
+    def run_migration():
+        """执行数据迁移"""
+        try:
+            results = MigrationService.run_migration()
+            return jsonify({"success": True, "results": results})
+        except Exception as exc:
+            return jsonify({"error": f"迁移失败: {str(exc)}"}), 500
+
+    @app.get("/api/admin/migrate/status")
+    def get_migration_status():
+        """获取迁移状态（检查新表是否有数据）"""
+        with engine.begin() as conn:
+            # 检查各表的记录数
+            users_count = conn.execute(text("SELECT COUNT(*) FROM users")).scalar()
+            chapters_count = conn.execute(text("SELECT COUNT(*) FROM chapters")).scalar()
+            chapter_contents_count = conn.execute(text("SELECT COUNT(*) FROM chapter_contents")).scalar()
+            chapter_summaries_count = conn.execute(text("SELECT COUNT(*) FROM chapter_summaries")).scalar()
+            interpretations_with_book = conn.execute(
+                text("SELECT COUNT(*) FROM interpretations WHERE book_id IS NOT NULL")
+            ).scalar()
+            interpretations_without_book = conn.execute(
+                text("SELECT COUNT(*) FROM interpretations WHERE book_id IS NULL")
+            ).scalar()
+            prompts_count = conn.execute(text("SELECT COUNT(*) FROM prompts")).scalar()
+        
+        return jsonify({
+            "success": True,
+            "status": {
+                "users": users_count,
+                "chapters": chapters_count,
+                "chapter_contents": chapter_contents_count,
+                "chapter_summaries_legacy": chapter_summaries_count,
+                "interpretations_linked": interpretations_with_book,
+                "interpretations_unlinked": interpretations_without_book,
+                "prompts": prompts_count,
+                "migration_needed": chapter_summaries_count > 0 and chapters_count == 0
+            }
+        })
 
     return app
 
