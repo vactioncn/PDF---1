@@ -2213,12 +2213,19 @@
           return;
         }
         
+        // 读取用户设置的字数上限
+        const maxLengthInput = document.getElementById("restructureMaxLength");
+        const MAX_WORD_COUNT = parseInt(maxLengthInput?.value || "5000");
+        if (isNaN(MAX_WORD_COUNT) || MAX_WORD_COUNT <= 0) {
+          renderStatus("请输入有效的字数上限", "error");
+          return;
+        }
+        
         restructureButton.disabled = true;
-        renderStatus("正在重构文章结构，请稍候...", "info");
+        renderStatus(`正在重构文章结构（字数上限: ${MAX_WORD_COUNT.toLocaleString()}字），请稍候...`, "info");
         showProgress(parsedEntries.length, "正在分析章节结构...");
         
         try {
-          const MAX_WORD_COUNT = 10000; // 每个单元最多1万字
           const newEntries = [];
           
           for (let index = 0; index < parsedEntries.length; index++) {

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF解读系统 - 业务流程图</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            padding: 40px 20px;
+        }
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            font-size: 24px;
+            color: #1e293b;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            padding: 20px 0;
+        }
+        .step-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .step-table th, .step-table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .step-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+        .step-table tr:hover {
+            background: #f8fafc;
+        }
+        .step-num {
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 PDF解读系统</h1>
+            <p>业务流程可视化</p>
+        </div>
+
+        <div class="card">
+            <h2>🎯 核心业务流程：从上传到解读</h2>
+            <div class="mermaid">
+flowchart TB
+    subgraph 入口["🚀 开始"]
+        A[("📄 上传 PDF/EPUB")]
+    end
+    subgraph 解析阶段["📖 第一阶段：文档解析"]
+        B["🔍 目录清洗 (LLM智能识别)"]
+        C["📑 内容提取 (按章节切分)"]
+        D["🌐 翻译处理 (可选)"]
+        E[("💾 入库存储")]
+    end
+    subgraph 配置阶段["⚙️ 第二阶段：解读配置"]
+        F["📚 选择书籍章节"]
+        G["👤 选择用户画像"]
+        H["📊 选择解读密度"]
+        I["✏️ 配置提示词"]
+    end
+    subgraph 生成阶段["🧠 第三阶段：AI生成"]
+        J["🤔 深度思考 (reasoning)"]
+        K["📝 生成解读内容"]
+        L["🎙️ 生成播客 (可选)"]
+    end
+    subgraph 输出["✨ 完成"]
+        M[("📖 个性化解读结果")]
+    end
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> K
+    K --> L
+    L --> M
+    K --> M
+    style A fill:#e1f5fe,stroke:#01579b
+    style E fill:#fff3e0,stroke:#e65100
+    style J fill:#f3e5f5,stroke:#7b1fa2
+    style M fill:#e8f5e9,stroke:#2e7d32
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📋 简化版：一图看懂全流程</h2>
+            <div class="mermaid">
+graph LR
+    A((📄 上传书籍)) --> B((🔍 解析目录))
+    B --> C((📑 提取内容))
+    C --> D((💾 入库))
+    D --> E((📚 选择章节))
+    E --> F((👤 配置偏好))
+    F --> G((🧠 AI生成))
+    G --> H((📖 解读结果))
+    H --> I((🎙️ 播客))
+    style A fill:#bbdefb
+    style D fill:#fff9c4
+    style G fill:#e1bee7
+    style H fill:#c8e6c9
+    style I fill:#ffccbc
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>👤 用户画像与解读密度</h2>
+            <div class="mermaid">
+flowchart LR
+    subgraph 用户画像["👤 四种用户画像"]
+        U1["🏢 A. 创业CEO<br/>碎片化阅读"]
+        U2["💡 B. 产品经理<br/>深度阅读"]
+        U3["📚 C. 知识工作者<br/>沉浸式阅读"]
+        U4["⚡ D. 职场人士<br/>快速阅读"]
+    end
+    subgraph 密度["📊 三种解读密度"]
+        D1["20% 主干<br/>3-4个要点"]
+        D2["50% 核心<br/>5-7个要点"]
+        D3["70% 深度<br/>8-12个要点"]
+    end
+    U1 --> D1
+    U2 --> D2
+    U3 --> D3
+    U4 --> D1
+    style U1 fill:#ffebee
+    style U2 fill:#e3f2fd
+    style U3 fill:#f3e5f5
+    style U4 fill:#fff8e1
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🔄 解读内容生成结构</h2>
+            <div class="mermaid">
+flowchart TB
+    subgraph 输入["📥 输入"]
+        I1["章节内容"]
+        I2["用户画像"]
+        I3["解读密度"]
+        I4["提示词模板"]
+    end
+    subgraph AI["🧠 豆包深度思考模型"]
+        T["思考过程<br/>(reasoning_content)"]
+        R["最终结果<br/>(content)"]
+    end
+    subgraph 输出["📤 解读输出"]
+        O1["📖 个性化导读"]
+        O2["📝 正文解读"]
+        O3["💡 实际应用"]
+        O4["❓ 互动问答"]
+        O5["🤔 思考问题"]
+    end
+    I1 --> AI
+    I2 --> AI
+    I3 --> AI
+    I4 --> AI
+    AI --> T
+    T --> R
+    R --> O1
+    R --> O2
+    R --> O3
+    R --> O4
+    R --> O5
+    style AI fill:#f3e5f5,stroke:#7b1fa2
+    style T fill:#ede7f6
+    style R fill:#e8f5e9
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🏗️ 系统架构总览</h2>
+            <div class="mermaid">
+flowchart TB
+    subgraph 前端["🖥️ 前端页面"]
+        P1["parser_test_page<br/>文档解析"]
+        P2["aigen_test_page<br/>个性化解读"]
+        P3["book_restructure<br/>书籍重构"]
+        P4["admin_books<br/>书籍管理"]
+    end
+    subgraph 后端["⚙️ Flask API"]
+        A1["/api/parse/*"]
+        A2["/api/generate/*"]
+        A3["/api/admin/*"]
+        A4["/api/podcast/*"]
+    end
+    subgraph 外部["☁️ 外部服务"]
+        E1["🤖 豆包API"]
+        E2["🌐 DeepSeek"]
+        E3["🎙️ 火山TTS"]
+    end
+    subgraph 存储["💾 数据存储"]
+        DB[("SQLite")]
+    end
+    P1 --> A1
+    P2 --> A2
+    P3 --> A2
+    P4 --> A3
+    P2 --> A4
+    A1 --> E1
+    A2 --> E1
+    A1 --> E2
+    A4 --> E3
+    A1 --> DB
+    A2 --> DB
+    A3 --> DB
+    style E1 fill:#e8eaf6,stroke:#3f51b5
+    style DB fill:#fff3e0,stroke:#ff9800
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🎬 操作步骤速查</h2>
+            <table class="step-table">
+                <thead>
+                    <tr>
+                        <th>步骤</th>
+                        <th>页面</th>
+                        <th>操作</th>
+                        <th>结果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td class="step-num">1️⃣</td><td>文档解析</td><td>上传 PDF/EPUB</td><td>获取文件</td></tr>
+                    <tr><td class="step-num">2️⃣</td><td>文档解析</td><td>点击"目录清洗"</td><td>识别章节结构</td></tr>
+                    <tr><td class="step-num">3️⃣</td><td>文档解析</td><td>点击"解析内容"</td><td>提取各章内容</td></tr>
+                    <tr><td class="step-num">4️⃣</td><td>文档解析</td><td>点击"入库"</td><td>保存到数据库</td></tr>
+                    <tr><td class="step-num">5️⃣</td><td>个性化解读</td><td>选择书籍章节</td><td>加载内容</td></tr>
+                    <tr><td class="step-num">6️⃣</td><td>个性化解读</td><td>选择用户画像</td><td>定制风格</td></tr>
+                    <tr><td class="step-num">7️⃣</td><td>个性化解读</td><td>选择解读密度</td><td>控制详略</td></tr>
+                    <tr><td class="step-num">8️⃣</td><td>个性化解读</td><td>点击"生成解读"</td><td>AI生成内容</td></tr>
+                    <tr><td class="step-num">9️⃣</td><td>个性化解读</td><td>点击"生成播客"</td><td>语音输出</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>
