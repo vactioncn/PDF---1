@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>书籍处理工作流</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+      color: #1a1a2e;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    .desc { color: #666; font-size: 14px; margin-bottom: 20px; }
+    
+    /* 步骤条 */
+    .steps {
+      display: flex;
+      background: #fff;
+      border-radius: 10px;
+      padding: 0;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .step {
+      flex: 1;
+      padding: 14px 10px;
+      text-align: center;
+      cursor: pointer;
+      border-right: 1px solid #eee;
+      transition: all 0.2s;
+    }
+    .step:last-child { border-right: none; }
+    .step:hover { background: #f8f9fa; }
+    .step.active { background: #6366f1; color: #fff; }
+    .step.done { background: #10b981; color: #fff; }
+    .step-num { font-size: 18px; font-weight: 700; }
+    .step-name { font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>📚 一站式书籍处理</h1>
+    <p class="desc">完整流程：上传 → 清洗目录 → 解析入库 → 重构 → 生成新书 → 入库</p>
+
+    <!-- 步骤条 -->
+    <div class="steps">
+      <div class="step active" data-step="1"><div class="step-num">1</div><div class="step-name">上传文件</div></div>
+      <div class="step" data-step="2"><div class="step-num">2</div><div class="step-name">目录清洗</div></div>
+      <div class="step" data-step="3"><div class="step-num">3</div><div class="step-name">解析入库</div></div>
+      <div class="step" data-step="4"><div class="step-num">4</div><div class="step-name">重构目录</div></div>
+      <div class="step" data-step="5"><div class="step-num">5</div><div class="step-name">生成新书</div></div>
+      <div class="step" data-step="6"><div class="step-num">6</div><div class="step-name">新书入库</div></div>
+    </div>
+
+    <!-- 步骤1: 上传文件 -->
+    <div id="panel1" class="panel">
+      <h2>📄 步骤1: 上传文件</h2>
+      <div class="row">
+        <input type="file" id="fileInput" accept=".pdf,.epub" />
+        <label class="chk"><input type="checkbox" id="needTranslate" /> 英文书需翻译</label>
+        <button id="uploadBtn">上传并解析</button>
+        <span class="or">或</span>
+        <button id="loadDbBtn" class="secondary">从数据库加载</button>
+      </div>
+      <div id="status1" class="status"></div>
+    </div>
+
+    <!-- 步骤2: 目录清洗 -->
+    <div id="panel2" class="panel hide">
+      <h2>🧹 步骤2: 目录清洗</h2>
+      <p class="hint">使用大模型过滤前言、附录等非正文内容</p>
+      <div class="row">
+        <button id="cleanBtn" disabled>开始清洗</button>
+      </div>
+      <div id="status2" class="status"></div>
+      <div id="tocPreview" class="preview hide"></div>
+    </div>
+
+    <!-- 步骤3: 解析入库 -->
+    <div id="panel3" class="panel hide">
+      <h2>📊 步骤3: 解析内容与入库</h2>
+      <div class="row">
+        <button id="parseBtn" disabled>解析章节内容</button>
+        <button id="ingestBtn" class="success" disabled>基本信息入库</button>
+      </div>
+      <div id="status3" class="status"></div>
+      <div id="chapterList" class="preview hide"></div>
+    </div>
+
+    <!-- 步骤4: 重构目录 -->
+    <div id="panel4" class="panel hide">
+      <h2>🔄 步骤4: 重构目录</h2>
+      <div class="row">
+        <label>分割字数：</label>
+        <input type="number" id="maxWords" value="5000" min="1000" max="20000" step="500" style="width:100px" />
+        <span class="hint">字/段</span>
+      </div>
+      <div style="margin: 12px 0;">
+        <label>重构提示词：</label>
+        <textarea id="promptText" rows="6"></textarea>
+      </div>
+      <div class="row">
+        <button id="restructureBtn" disabled>开始重构</button>
+      </div>
+      <div id="status4" class="status"></div>
+      <details id="thinkingBox" class="hide">
+        <summary>💭 思考过程</summary>
+        <div id="thinkingText" class="thinking"></div>
+      </details>
+      <div id="newTocPreview" class="preview hide"></div>
+    </div>
+
+    <!-- 步骤5: 生成新书 -->
+    <div id="panel5" class="panel hide">
+      <h2>📖 步骤5: 生成新书</h2>
+      <div class="row">
+        <select id="partSelect"><option value="">选择Part测试...</option></select>
+        <button id="testPartBtn" class="warning" disabled>测试该Part</button>
+        <button id="genBookBtn" class="success" disabled>生成整本新书</button>
+      </div>
+      <div id="progress5" class="progress hide"><div id="progressBar"></div></div>
+      <div id="status5" class="status"></div>
+      <div id="bookPreview" class="preview hide">
+        <div class="split-view">
+          <div class="toc-side"><h3>📑 目录</h3><div id="newBookToc"></div></div>
+          <div class="content-side"><h3 id="contentTitle">📄 内容预览</h3><div id="newBookContent">点击左侧目录查看</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步骤6: 新书入库 -->
+    <div id="panel6" class="panel hide">
+      <h2>💾 步骤6: 新书入库</h2>
+      <div class="row">
+        <label>新书名称：</label>
+        <input type="text" id="newBookName" style="flex:1" placeholder="输入新书名称..." />
+        <button id="saveBtn" class="success" disabled>保存到数据库</button>
+      </div>
+      <div id="status6" class="status"></div>
+    </div>
+
+    <!-- 加载书籍弹窗 -->
+    <dialog id="loadDialog">
+      <div class="dialog-header">📚 选择书籍</div>
+      <div class="dialog-body">
+        <input type="text" id="searchBook" placeholder="搜索..." style="width:100%;margin-bottom:12px" />
+        <div id="bookList"></div>
+      </div>
+      <div class="dialog-footer"><button id="closeDialog">关闭</button></div>
+    </dialog>
+  </div>
+
+  <style>
+    .panel {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .panel h2 { margin: 0 0 12px; font-size: 16px; }
+    .panel.hide { display: none; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .hint { color: #888; font-size: 13px; }
+    .or { color: #999; font-size: 13px; }
+    .chk { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+    .chk input { width: 16px; height: 16px; }
+    
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      background: #6366f1;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    button.secondary { background: #64748b; }
+    button.success { background: #10b981; }
+    button.warning { background: #f59e0b; }
+    
+    input[type="file"], input[type="text"], input[type="number"], select, textarea {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #6366f1; }
+    textarea { width: 100%; resize: vertical; }
+    
+    .status { margin-top: 12px; padding: 10px 14px; border-radius: 6px; font-size: 14px; display: none; }
+    .status.info { display: block; background: #eff6ff; color: #1e40af; border-left: 3px solid #3b82f6; }
+    .status.success { display: block; background: #f0fdf4; color: #166534; border-left: 3px solid #22c55e; }
+    .status.error { display: block; background: #fef2f2; color: #991b1b; border-left: 3px solid #ef4444; }
+    
+    .preview { margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 6px; font-size: 13px; line-height: 1.7; max-height: 300px; overflow-y: auto; }
+    .preview.hide { display: none; }
+    
+    .progress { height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 12px; overflow: hidden; }
+    .progress.hide { display: none; }
+    #progressBar { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); width: 0%; transition: width 0.3s; }
+    
+    .thinking { padding: 12px; background: #fffbeb; border-radius: 6px; font-size: 13px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; margin-top: 8px; }
+    details summary { cursor: pointer; padding: 8px 12px; background: #fef3c7; border-radius: 6px; font-weight: 500; color: #92400e; }
+    details.hide { display: none; }
+    
+    .split-view { display: grid; grid-template-columns: 250px 1fr; gap: 16px; }
+    .toc-side, .content-side { background: #fff; border-radius: 6px; padding: 12px; }
+    .toc-side h3, .content-side h3 { margin: 0 0 12px; font-size: 14px; color: #475569; }
+    .toc-side { max-height: 400px; overflow-y: auto; }
+    .content-side { max-height: 400px; overflow-y: auto; line-height: 1.8; }
+    .toc-item { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 13px; }
+    .toc-item:hover { background: #f1f5f9; }
+    .toc-part { font-weight: 600; color: #6366f1; margin: 10px 0 6px; font-size: 13px; }
+    
+    dialog { border: none; border-radius: 10px; padding: 0; width: 500px; max-width: 90vw; }
+    dialog::backdrop { background: rgba(0,0,0,0.4); }
+    .dialog-header { padding: 16px 20px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 600; }
+    .dialog-body { padding: 20px; max-height: 400px; overflow-y: auto; }
+    .dialog-footer { padding: 12px 20px; border-top: 1px solid #eee; text-align: right; }
+    .book-item { padding: 10px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 8px; cursor: pointer; }
+    .book-item:hover { background: #f8fafc; border-color: #6366f1; }
+    .book-name { font-weight: 500; }
+    .book-info { font-size: 12px; color: #888; margin-top: 4px; }
+    
+    .loading::before {
+      content: "";
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <script>
+    // ===== 状态 =====
+    const S = {
+      step: 1,
+      file: null,
+      filename: '',
+      rawToc: [],
+      cleanedToc: [],
+      chapters: [],
+      bookId: null,
+      newToc: null,
+      parts: [],
+      newBook: []
+    };
+
+    // ===== 工具函数 =====
+    const $ = id => document.getElementById(id);
+    const show = (id, cls = '') => { const el = $(id); if(el) { el.classList.remove('hide'); if(cls) el.className = `status ${cls}`; } };
+    const hide = id => { const el = $(id); if(el) el.classList.add('hide'); };
+    const status = (id, msg, type) => { const el = $(id); if(el) { el.textContent = msg; el.className = `status ${type}`; } };
+    const esc = t => { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; };
+
+    // ===== 步骤导航 =====
+    function goStep(n) {
+      document.querySelectorAll('.step').forEach((s, i) => {
+        s.classList.remove('active', 'done');
+        if (i + 1 < n) s.classList.add('done');
+        else if (i + 1 === n) s.classList.add('active');
+      });
+      for (let i = 1; i <= 6; i++) {
+        const p = $(`panel${i}`);
+        if (p) p.classList.toggle('hide', i > n);
+      }
+      S.step = n;
+    }
+
+    document.querySelectorAll('.step').forEach(s => {
+      s.addEventListener('click', () => {
+        const n = parseInt(s.dataset.step);
+        if (n <= S.step) goStep(n);
+      });
+    });
+
+    // ===== 步骤1: 上传 =====
+    $('fileInput').addEventListener('change', e => {
+      S.file = e.target.files[0];
+      if (S.file) S.filename = S.file.name;
+    });
+
+    $('uploadBtn').addEventListener('click', async () => {
+      if (!S.file) { status('status1', '请先选择文件', 'error'); return; }
+      const btn = $('uploadBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.textContent = '上传中...';
+      status('status1', '正在上传并提取目录...', 'info');
+
+      try {
+        const fd = new FormData();
+        fd.append('file', S.file);
+        const res = await fetch('/api/parse/debug_toc', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        S.rawToc = data.raw_toc || [];
+        status('status1', `上传成功，检测到 ${S.rawToc.length} 个目录项`, 'success');
+        $('cleanBtn').disabled = false;
+        goStep(2);
+      } catch (e) {
+        status('status1', `失败: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = '上传并解析';
+      }
+    });
+
+    // 从数据库加载
+    $('loadDbBtn').addEventListener('click', async () => {
+      $('loadDialog').showModal();
+      $('bookList').innerHTML = '<p style="text-align:center;color:#888">加载中...</p>';
+      try {
+        const res = await fetch('/api/admin/books?page=1&per_page=100');
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        const books = data.books || [];
+        if (!books.length) { $('bookList').innerHTML = '<p style="color:#888">暂无书籍</p>'; return; }
+        $('bookList').innerHTML = books.map(b => `
+          <div class="book-item" data-id="${b.id}">
+            <div class="book-name">${esc(b.filename)}</div>
+            <div class="book-info">${b.chapter_count} 章 · ${(b.total_word_count||0).toLocaleString()} 字</div>
+          </div>
+        `).join('');
+        $('bookList').querySelectorAll('.book-item').forEach(item => {
+          item.addEventListener('click', () => loadBook(item.dataset.id));
+        });
+      } catch (e) {
+        $('bookList').innerHTML = `<p style="color:#ef4444">${e.message}</p>`;
+      }
+    });
+
+    $('closeDialog').addEventListener('click', () => $('loadDialog').close());
+
+    async function loadBook(id) {
+      try {
+        const res = await fetch(`/api/admin/books/${id}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        S.bookId = id;
+        S.filename = data.book.filename;
+        S.chapters = data.chapters || [];
+        S.cleanedToc = S.chapters.map((c, i) => [1, c.title || c.title_zh, i + 1]);
+        $('loadDialog').close();
+        status('status1', `已加载: ${S.filename} (${S.chapters.length} 章)`, 'success');
+        renderChapters();
+        show('chapterList');
+        $('restructureBtn').disabled = false;
+        goStep(4);
+      } catch (e) {
+        status('status1', `加载失败: ${e.message}`, 'error');
+      }
+    }
+
+    // ===== 步骤2: 清洗 =====
+    $('cleanBtn').addEventListener('click', async () => {
+      const btn = $('cleanBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.textContent = '清洗中...';
+      status('status2', '正在调用大模型清洗目录...', 'info');
+
+      try {
+        const fd = new FormData();
+        fd.append('file', S.file);
+        const res = await fetch('/api/parse/clean_toc', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        S.cleanedToc = data.cleaned_toc || [];
+        // cleaned_toc 格式是 [{level, title, page}, ...]
+        $('tocPreview').innerHTML = `<strong>清洗后目录 (${S.cleanedToc.length}章):</strong><br>` +
+          S.cleanedToc.map((t, i) => `${i + 1}. ${esc(t.title || t[1] || '')}`).join('<br>');
+        show('tocPreview');
+        status('status2', `清洗完成，保留 ${S.cleanedToc.length} 章`, 'success');
+        $('parseBtn').disabled = false;
+        goStep(3);
+      } catch (e) {
+        status('status2', `失败: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = '开始清洗';
+      }
+    });
+
+    // ===== 步骤3: 解析入库 =====
+    $('parseBtn').addEventListener('click', async () => {
+      const btn = $('parseBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.textContent = '解析中...';
+      status('status3', '正在解析章节内容...', 'info');
+
+      try {
+        const fd = new FormData();
+        fd.append('file', S.file);
+        fd.append('cleaned_toc', JSON.stringify(S.cleanedToc));
+        const res = await fetch('/api/parse/extract', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        S.chapters = data.entries || [];
+        renderChapters();
+        show('chapterList');
+        status('status3', `解析完成，共 ${S.chapters.length} 章`, 'success');
+        $('ingestBtn').disabled = false;
+      } catch (e) {
+        status('status3', `失败: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = '解析章节内容';
+      }
+    });
+
+    function renderChapters() {
+      $('chapterList').innerHTML = '<table style="width:100%;font-size:13px;"><thead><tr><th>#</th><th>标题</th><th>字数</th></tr></thead><tbody>' +
+        S.chapters.map((c, i) => `<tr><td>${i + 1}</td><td>${esc(c.title_zh || c.title)}</td><td>${(c.word_count||0).toLocaleString()}</td></tr>`).join('') +
+        '</tbody></table>';
+    }
+
+    $('ingestBtn').addEventListener('click', async () => {
+      const btn = $('ingestBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.textContent = '入库中...';
+      status('status3', '正在入库...', 'info');
+
+      try {
+        const res = await fetch('/api/parse/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: S.filename, entries: S.chapters })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        if (data.entries) S.chapters = data.entries;
+        renderChapters();
+        status('status3', '入库成功！', 'success');
+        $('restructureBtn').disabled = false;
+        goStep(4);
+      } catch (e) {
+        status('status3', `失败: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = '基本信息入库';
+      }
+    });
+
+    // ===== 步骤4: 重构目录 =====
+    const DEFAULT_PROMPT = `你是一位超厉害的深度阅读达人，特别擅长结构化分析。现在要根据全书的"章节标题 + 摘要"，给这本书搭建一个超清晰的高层语义结构。
+
+下面有一组章节信息，每一项都包含章节编号、章节标题和章节摘要：
+<chapters>
+{chapters}
+</chapters>
+
+你的任务是，依据这些标题和摘要，把整本书重新分成合适数量的高层主题（Part）。
+
+具体要求如下：
+
+1. 好好吃透全书内容：
+   - 认真读完所有章节的标题和摘要。
+   - 找出全书的核心思想、主要话题，还有作者想要解决的问题。
+
+2. 按原书顺序划分"大主题 / 篇章（Part）"：
+   - **关键约束：每个 Part 必须包含连续的章节，严禁跳跃式分组。** 比如可以是"1、2、3、4"或"5、6、7"，绝对不能出现"2、6、10、14"这种不连续的情况。
+   - 你的任务是找到合适的"切分点"，把全书按顺序切成几个大块。
+   - 根据内容实际情况决定 Part 数量，可能是 2 个、3 个、5 个甚至更多。
+   - 每个主题里面的内容得紧密相关。
+   - 主题名称要通俗易懂，生动有趣，让人看了就想读，别搞那种很学术的风格。
+
+3. 列出每个主题包含的章节编号（必须连续且按顺序），再给每个主题写一个新的摘要。
+
+输出格式必须是下面这样（Part 数量根据实际内容决定）：
+
+Part 1：{主题名称}
+    覆盖章节：{连续的章节编号列表，如 1、2、3、4}
+    摘要：{对该主题内容的简要概括}
+
+Part 2：{主题名称}
+    覆盖章节：{连续的章节编号列表，如 5、6、7、8}
+    摘要：{对该主题内容的简要概括}
+
+...（根据实际内容继续，不限制 Part 数量）
+
+别做多余解释，也别重复给摘要，只要给出"主题名称 + 包含章节 + 主题摘要"就行。`;
+
+    $('promptText').value = DEFAULT_PROMPT;
+
+    $('restructureBtn').addEventListener('click', async () => {
+      const btn = $('restructureBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.textContent = '重构中...';
+      status('status4', '正在生成目录摘要...', 'info');
+
+      try {
+        // 生成章节摘要文本
+        const tocText = S.chapters.map((c, i) => {
+          const title = c.title_zh || c.title || `第${i + 1}章`;
+          const summary = c.summary || '';
+          return `${i + 1}. ${title}\n${summary}`;
+        }).join('\n\n');
+
+        const prompt = $('promptText').value.replace(/{chapters}/g, tocText);
+        status('status4', '正在调用深度思考模型...', 'info');
+
+        const res = await fetch('/api/test/doubao-thinking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, temperature: 0.3, max_tokens: 16000, model: 'doubao-seed-1-6-251015' })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        S.newToc = data.content;
+        if (data.reasoning_content) {
+          $('thinkingText').textContent = data.reasoning_content;
+          show('thinkingBox');
+        }
+        $('newTocPreview').innerHTML = `<strong>重构后目录：</strong><pre style="white-space:pre-wrap;margin:8px 0 0">${esc(data.content)}</pre>`;
+        show('newTocPreview');
+
+        // 解析Part
+        S.parts = parseParts(data.content);
+        updatePartSelect();
+
+        status('status4', '重构完成！', 'success');
+        $('testPartBtn').disabled = false;
+        $('genBookBtn').disabled = false;
+        goStep(5);
+      } catch (e) {
+        status('status4', `失败: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = '开始重构';
+      }
+    });
+
+    function parseParts(text) {
+      if (!text) return [];
+      const parts = [];
+      let cur = null;
+      for (const line of text.split('\n')) {
+        const t = line.trim();
+        if (!t) continue;
+        const m = t.match(/^(?:Part|PART)?\s*(\d+)[：:]\s*(.+)$/i);
+        if (m) {
+          if (cur) parts.push(cur);
+          cur = { num: parseInt(m[1]), title: m[2].trim(), chapters: [], summary: '' };
+          continue;
+        }
+        if (cur) {
+          const cm = t.match(/覆盖章节[：:]\s*(.+)$/);
+          if (cm) {
+            cur.chapters = cm[1].split(/[，,、\s]+/).map(n => parseInt(n.replace(/\D/g, ''))).filter(n => n > 0);
+            continue;
+          }
+          const sm = t.match(/摘要[：:]\s*(.+)$/);
+          if (sm) cur.summary = sm[1].trim();
+        }
+      }
+      if (cur) parts.push(cur);
+      return parts.sort((a, b) => a.num - b.num);
+    }
+
+    function updatePartSelect() {
+      const sel = $('partSelect');
+      sel.innerHTML = '<option value="">选择Part测试...</option>' +
+        S.parts.map(p => `<option value="${p.num}">Part ${p.num}: ${esc(p.title)}</option>`).join('');
+    }
+
+    // ===== 步骤5: 生成新书 =====
+    $('testPartBtn').addEventListener('click', async () => {
+      const num = $('partSelect').value;
+      if (!num) { status('status5', '请选择Part', 'error'); return; }
+      const part = S.parts.find(p => p.num === parseInt(num));
+      if (!part) return;
+
+      const btn = $('testPartBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      status('status5', `正在分割 Part ${num}...`, 'info');
+
+      try {
+        const content = part.chapters.map(n => S.chapters[n - 1]?.content_zh || S.chapters[n - 1]?.content || '').join('\n\n');
+        const maxWords = parseInt($('maxWords').value) || 5000;
+
+        const res = await fetch('/api/restructure/split-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: `Part ${num}: ${part.title}`, content, max_word_count: maxWords })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        status('status5', `Part ${num} 分割完成，共 ${data.segments?.length || 0} 段`, 'success');
+      } catch (e) {
+        status('status5', `失败: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+      }
+    });
+
+    $('genBookBtn').addEventListener('click', async () => {
+      const btn = $('genBookBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.textContent = '生成中...';
+      show('progress5');
+
+      const maxWords = parseInt($('maxWords').value) || 5000;
+      S.newBook = [];
+      let done = 0;
+
+      try {
+        for (const part of S.parts) {
+          done++;
+          $('progressBar').style.width = `${Math.round(done / S.parts.length * 100)}%`;
+          status('status5', `处理 Part ${part.num}/${S.parts.length}...`, 'info');
+
+          const content = part.chapters.map(n => S.chapters[n - 1]?.content_zh || S.chapters[n - 1]?.content || '').join('\n\n');
+          const res = await fetch('/api/restructure/split-article', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: `Part ${part.num}: ${part.title}`, content, max_word_count: maxWords })
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          S.newBook.push({ part, segments: data.segments || [] });
+        }
+
+        renderNewBook();
+        show('bookPreview');
+        hide('progress5');
+        status('status5', '新书生成完成！', 'success');
+        $('newBookName').value = S.filename.replace(/\.(pdf|epub)$/i, '') + '_重构版';
+        $('saveBtn').disabled = false;
+        goStep(6);
+      } catch (e) {
+        status('status5', `失败: ${e.message}`, 'error');
+        hide('progress5');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = '生成整本新书';
+      }
+    });
+
+    function renderNewBook() {
+      let html = '';
+      let idx = 0;
+      S.newBook.forEach(item => {
+        html += `<div class="toc-part">Part ${item.part.num}: ${esc(item.part.title)}</div>`;
+        item.segments.forEach((seg, i) => {
+          html += `<div class="toc-item" data-idx="${idx}">${i + 1}. ${esc(seg.title)} <span style="color:#888">(${seg.word_count}字)</span></div>`;
+          idx++;
+        });
+      });
+      $('newBookToc').innerHTML = html;
+      $('newBookToc').querySelectorAll('.toc-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const i = parseInt(item.dataset.idx);
+          let cnt = 0;
+          for (const p of S.newBook) {
+            for (const seg of p.segments) {
+              if (cnt === i) {
+                $('contentTitle').textContent = `📄 ${seg.title}`;
+                $('newBookContent').textContent = seg.content;
+                return;
+              }
+              cnt++;
+            }
+          }
+        });
+      });
+    }
+
+    // ===== 步骤6: 入库 =====
+    $('saveBtn').addEventListener('click', async () => {
+      const name = $('newBookName').value.trim();
+      if (!name) { status('status6', '请输入书名', 'error'); return; }
+
+      const btn = $('saveBtn');
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btn.textContent = '保存中...';
+
+      try {
+        const entries = [];
+        S.newBook.forEach(item => {
+          item.segments.forEach(seg => {
+            entries.push({ title: seg.title, content: seg.content, word_count: seg.word_count });
+          });
+        });
+
+        const res = await fetch('/api/parse/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: name, entries })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        status('status6', `🎉 保存成功！共 ${entries.length} 章`, 'success');
+      } catch (e) {
+        status('status6', `失败: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.textContent = '保存到数据库';
+      }
+    });
+
+    // 初始化
+    goStep(1);
+  </script>
+</body>
+</html>

@@ -265,24 +265,68 @@
           <label for="restructurePrompt" style="margin: 0;">目录重构提示词</label>
           <button id="restructureTocButton" class="secondary" disabled style="padding: 10px 20px; font-size: 14px; background: #6366f1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">🔄 重构目录</button>
         </div>
-        <textarea id="restructurePrompt" rows="15" placeholder="输入重构提示词..."></textarea>
+        <textarea id="restructurePrompt" rows="12" placeholder="输入重构提示词..."></textarea>
       </div>
+    </section>
 
-      <div id="restructureResult" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h3 style="margin: 0; color: #1e293b; font-size: 16px;">📋 重构后的目录</h3>
+    <!-- 重构结果区域 - 简化版 -->
+    <section id="restructureResult" class="panel" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin: 0;">📋 重构后的目录</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <select id="partSelector" style="padding: 8px 12px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 6px; background: white; color: #374151; cursor: pointer; min-width: 180px;">
+            <option value="">选择Part测试...</option>
+          </select>
+          <button id="generateSinglePartButton" style="padding: 8px 16px; font-size: 14px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">🔄 测试该Part</button>
           <button id="generateNewBookButton" class="secondary" disabled style="padding: 8px 16px; font-size: 14px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">📖 新书生成</button>
         </div>
-        <div id="restructureResultContent" style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0; max-height: 500px; overflow-y: auto;"></div>
       </div>
-
-      <div id="newBookResult" style="display: none; margin-top: 16px; padding: 16px; background: #f0fdf4; border-radius: 8px; border: 1px solid #86efac;">
-        <h3 style="margin: 0 0 12px 0; color: #065f46; font-size: 16px;">✅ 新书生成完成</h3>
-        <div id="newBookResultContent" style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #86efac; max-height: 600px; overflow-y: auto;"></div>
-      </div>
-
-      <div class="status" id="restructureStatus" style="display: none; margin-top: 16px;"></div>
+      
+      <!-- 思考过程（可折叠） -->
+      <details id="thinkingDetails" style="margin-bottom: 16px;">
+        <summary style="cursor: pointer; padding: 8px 12px; background: #fef3c7; border-radius: 6px; font-weight: 500; color: #92400e;">💭 查看思考过程</summary>
+        <div id="thinkingContent" style="margin-top: 8px; padding: 12px; background: #fffbeb; border-radius: 6px; font-size: 13px; line-height: 1.7; color: #78350f; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></div>
+      </details>
+      
+      <!-- 重构结果 -->
+      <div id="restructureResultContent" style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; font-size: 14px;"></div>
     </section>
+      
+    <!-- 单个Part测试结果 -->
+    <section id="singlePartResult" class="panel" style="display: none; background: #fffbeb; border: 1px solid #fcd34d;">
+      <h2 style="color: #92400e;">🧪 Part测试结果</h2>
+      <div id="singlePartResultContent" style="line-height: 1.8; color: #1e293b;"></div>
+    </section>
+
+    <!-- 新书结果展示区域 -->
+    <section id="newBookResult" class="panel" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+          <h2 style="margin: 0 0 4px 0;">✅ 新书生成完成</h2>
+          <p id="newBookSummary" style="margin: 0; font-size: 13px; color: #64748b;">共 0 个部分，0 个段落</p>
+        </div>
+        <button id="saveNewBookButton" style="padding: 10px 20px; font-size: 14px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">💾 保存到数据库</button>
+      </div>
+      
+      <!-- 左右分栏布局 -->
+      <div style="display: grid; grid-template-columns: 280px 1fr; gap: 16px;">
+        <!-- 左侧：目录树 -->
+        <div>
+          <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #475569;">📑 新书目录</h3>
+          <div id="newBookTocTree" style="max-height: 500px; overflow-y: auto;"></div>
+        </div>
+        
+        <!-- 右侧：内容预览 -->
+        <div>
+          <h3 id="previewTitle" style="margin: 0 0 12px 0; font-size: 14px; color: #475569;">📄 选择左侧章节查看内容</h3>
+          <div id="newBookContentPreview" style="padding: 16px; background: #f8fafc; border-radius: 8px; min-height: 400px; max-height: 500px; overflow-y: auto; line-height: 1.8; color: #334155; font-size: 14px;">
+            <p style="color: #94a3b8; text-align: center; margin-top: 100px;">点击左侧目录查看内容</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="status" id="restructureStatus" style="display: none; margin: 16px 0;"></div>
 
     <script>
       // 默认的目录重构提示词
@@ -293,29 +337,34 @@
 {chapters}
 </chapters>
 
-你的任务是，依据这些标题和摘要，按照语义关系，把整本书重新分成合适数量的超有趣的高层主题（Part）。具体要求如下：
-1. 好好吃透全书内容：
-    - 认真读完所有章节的标题和摘要。
-    - 找出全书的核心思想、主要话题，还有作者想要解决的问题。
-2. 进行语义大聚类，划分出合适数量的"超棒大主题 / 精彩篇章（Part）"：
-    - 每个主题里面的内容得紧密相关。
-    - 主题之间尽量别重复。
-    - 能体现作者的重要思想板块。
-    - 主题名称要通俗易懂，生动有趣，让人看了就想读，别搞那种很学术的风格。
-3. 列出每个主题包含的章节编号，再给每个主题写一个新的摘要。
+你的任务是，依据这些标题和摘要，把整本书重新分成合适数量的高层主题（Part）。
 
-输出格式必须是下面这样：
+具体要求如下：
+
+1. 好好吃透全书内容：
+   - 认真读完所有章节的标题和摘要。
+   - 找出全书的核心思想、主要话题，还有作者想要解决的问题。
+
+2. 按原书顺序划分"大主题 / 篇章（Part）"：
+   - **关键约束：每个 Part 必须包含连续的章节，严禁跳跃式分组。** 比如可以是"1、2、3、4"或"5、6、7"，绝对不能出现"2、6、10、14"这种不连续的情况。
+   - 你的任务是找到合适的"切分点"，把全书按顺序切成几个大块。
+   - 根据内容实际情况决定 Part 数量，可能是 2 个、3 个、5 个甚至更多。
+   - 每个主题里面的内容得紧密相关。
+   - 主题名称要通俗易懂，生动有趣，让人看了就想读，别搞那种很学术的风格。
+
+3. 列出每个主题包含的章节编号（必须连续且按顺序），再给每个主题写一个新的摘要。
+
+输出格式必须是下面这样（Part 数量根据实际内容决定）：
+
 Part 1：{主题名称}
-    覆盖章节：{章节编号列表}
+    覆盖章节：{连续的章节编号列表，如 1、2、3、4}
     摘要：{对该主题内容的简要概括}
 
 Part 2：{主题名称}
-    覆盖章节：{章节编号列表}
+    覆盖章节：{连续的章节编号列表，如 5、6、7、8}
     摘要：{对该主题内容的简要概括}
 
-Part 3：{主题名称}
-    覆盖章节：{章节编号列表}
-    摘要：{对该主题内容的简要概括}
+...（根据实际内容继续，不限制 Part 数量）
 
 别做多余解释，也别重复给摘要，只要给出"主题名称 + 包含章节 + 主题摘要"就行。`;
 
@@ -655,35 +704,34 @@ Part 3：{主题名称}
             restructuredTocContent = result.content;
 
             // 第四步：显示结果
+            const thinkingContent = document.getElementById('thinkingContent');
+            const thinkingDetails = document.getElementById('thinkingDetails');
+            
+            // 思考过程（放到折叠区域）
+            if (result.reasoning_content && thinkingContent) {
+              thinkingContent.textContent = result.reasoning_content;
+              if (thinkingDetails) thinkingDetails.style.display = 'block';
+            } else {
+              if (thinkingDetails) thinkingDetails.style.display = 'none';
+            }
+            
+            // 最终结果（重构后的目录）- 直接显示文本
             if (restructureResultContent) {
-              // 显示思考过程和最终结果
-              let resultHtml = "";
-              
-              // 思考过程
-              if (result.reasoning_content) {
-                resultHtml += `<div style="margin-bottom: 16px; padding: 16px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6;">`;
-                resultHtml += `<h5 style="margin-top: 0; margin-bottom: 12px; color: #1e40af; font-size: 15px; font-weight: 600;">🧠 思考过程</h5>`;
-                resultHtml += `<div style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; font-size: 14px; max-height: 300px; overflow-y: auto; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #bfdbfe;">${escapeHtml(result.reasoning_content)}</div>`;
-                resultHtml += `</div>`;
-              }
-              
-              // 最终结果（重构后的目录）
               if (result.content) {
-                resultHtml += `<div style="padding: 16px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">`;
-                resultHtml += `<h5 style="margin-top: 0; margin-bottom: 12px; color: #065f46; font-size: 15px; font-weight: 600;">✅ 重构后的目录</h5>`;
-                resultHtml += `<div style="white-space: pre-wrap; line-height: 1.8; color: #1e293b; font-size: 14px; padding: 12px; background: #ffffff; border-radius: 6px; border: 1px solid #86efac;">${escapeHtml(result.content)}</div>`;
-                resultHtml += `</div>`;
+                restructureResultContent.textContent = result.content;
               } else {
-                resultHtml += `<div style="padding: 12px; background: #fee2e2; border-radius: 6px; border-left: 3px solid #ef4444;">`;
-                resultHtml += `<p style="color: #991b1b; margin: 0;">❌ 未获取到重构结果</p>`;
-                resultHtml += `</div>`;
+                restructureResultContent.innerHTML = `<p style='color: #ef4444;'>❌ 未获取到重构结果</p>`;
               }
-              
-              restructureResultContent.innerHTML = resultHtml;
             }
 
             if (restructureResult) {
               restructureResult.style.display = "block";
+            }
+            
+            // 解析Part并填充选择器
+            if (result.content) {
+              const parts = parseNewTocStructure(result.content);
+              updatePartSelectorFromToc(parts);
             }
             
             // 启用新书生成按钮
@@ -692,7 +740,7 @@ Part 3：{主题名称}
             }
             
             if (restructureStatus) {
-              renderStatus(restructureStatus, "目录重构完成！可以点击【新书生成】按钮生成新书", "success");
+              renderStatus(restructureStatus, "目录重构完成！可以选择Part测试，或点击【新书生成】生成整本书", "success");
             }
           } catch (error) {
             console.error("重构目录失败:", error);
@@ -989,7 +1037,6 @@ Part 3：{主题名称}
           
           const restructureStatus = document.getElementById("restructureStatus");
           const newBookResult = document.getElementById("newBookResult");
-          const newBookResultContent = document.getElementById("newBookResultContent");
 
           if (newBookResult) {
             newBookResult.style.display = "none";
@@ -1099,46 +1146,18 @@ Part 3：{主题名称}
               generatedAt: new Date().toISOString()
             };
 
-            // 第四步：显示新书结构
-            if (newBookResultContent) {
-              let resultHtml = `<div style="margin-bottom: 16px; padding: 12px; background: #f0f9ff; border-radius: 6px; border-left: 4px solid #3b82f6;">`;
-              resultHtml += `<h4 style="margin: 0 0 8px 0; color: #1e40af;">📚 新书结构</h4>`;
-              resultHtml += `<div style="font-size: 13px; color: #475569;">`;
-              resultHtml += `<div>原书籍：${restructureBook?.filename || '未知'}</div>`;
-              resultHtml += `<div>新书籍部分数：${newBookChapters.length}</div>`;
-              resultHtml += `<div>分割字数上限：${maxWordCount}字</div>`;
-              resultHtml += `<div>生成时间：${new Date().toLocaleString('zh-CN')}</div>`;
-              resultHtml += `</div></div>`;
-
-              // 显示每个部分的详细信息
-              for (const chapter of newBookChapters) {
-                resultHtml += `<div style="margin-bottom: 20px; padding: 16px; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0;">`;
-                resultHtml += `<h5 style="margin: 0 0 8px 0; color: #1e293b; font-size: 16px; font-weight: 600;">Part ${chapter.partNumber}：${escapeHtml(chapter.title)}</h5>`;
-                if (chapter.summary) {
-                  resultHtml += `<div style="font-size: 13px; color: #64748b; margin-bottom: 12px; padding: 8px; background: #f8fafc; border-radius: 4px;">摘要：${escapeHtml(chapter.summary)}</div>`;
-                }
-                resultHtml += `<div style="font-size: 13px; color: #64748b; margin-bottom: 12px;">包含 ${chapter.segments.length} 个段落</div>`;
-                
-                // 显示每个段落
-                for (let j = 0; j < chapter.segments.length; j++) {
-                  const segment = chapter.segments[j];
-                  resultHtml += `<div style="margin-bottom: 12px; padding: 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #cbd5e1;">`;
-                  resultHtml += `<div style="font-weight: 600; color: #475569; margin-bottom: 6px;">段落 ${j + 1}：${escapeHtml(segment.title)}</div>`;
-                  if (segment.word_count > 0) {
-                    resultHtml += `<div style="font-size: 12px; color: #94a3b8; margin-bottom: 8px;">字数：${segment.word_count.toLocaleString()} 字</div>`;
-                  }
-                  if (segment.error) {
-                    resultHtml += `<div style="font-size: 12px; color: #ef4444; margin-bottom: 8px;">⚠️ 分割失败：${escapeHtml(segment.error)}</div>`;
-                  }
-                  resultHtml += `<div style="font-size: 13px; color: #64748b; max-height: 100px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(segment.content.substring(0, 500))}${segment.content.length > 500 ? '...' : ''}</div>`;
-                  resultHtml += `</div>`;
-                }
-                
-                resultHtml += `</div>`;
-              }
-
-              newBookResultContent.innerHTML = resultHtml;
+            // 渲染目录树
+            renderNewBookTocTree(newBookChapters);
+            
+            // 更新摘要信息
+            const totalSegments = newBookChapters.reduce((sum, ch) => sum + ch.segments.length, 0);
+            const newBookSummary = document.getElementById('newBookSummary');
+            if (newBookSummary) {
+              newBookSummary.textContent = `共 ${newBookChapters.length} 个部分，${totalSegments} 个段落`;
             }
+            
+            // 更新Part选择器
+            updatePartSelector();
 
             if (newBookResult) {
               newBookResult.style.display = "block";
@@ -1151,9 +1170,6 @@ Part 3：{主题名称}
             const errorMessage = error.message || "生成失败";
             if (restructureStatus) {
               renderStatus(restructureStatus, `生成失败: ${errorMessage}`, "error");
-            }
-            if (newBookResultContent) {
-              newBookResultContent.innerHTML = `<p style='color: #ef4444;'>${escapeHtml(errorMessage)}</p>`;
             }
             if (newBookResult) {
               newBookResult.style.display = "block";
@@ -1180,6 +1196,278 @@ Part 3：{主题名称}
           }
         });
       }
+
+      // 渲染新书目录树
+      function renderNewBookTocTree(chapters) {
+        const tocTree = document.getElementById('newBookTocTree');
+        if (!tocTree || !chapters) return;
+        
+        let html = '';
+        for (const chapter of chapters) {
+          html += `<div style="margin-bottom: 8px;">`;
+          html += `<div style="padding: 8px 12px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;" onclick="togglePartExpand(${chapter.partNumber})">`;
+          html += `<span id="partIcon${chapter.partNumber}">▼</span> Part ${chapter.partNumber}：${escapeHtml(chapter.title.substring(0, 15))}${chapter.title.length > 15 ? '...' : ''}`;
+          html += `</div>`;
+          html += `<div id="partSegments${chapter.partNumber}" style="margin-left: 12px; margin-top: 4px;">`;
+          for (let j = 0; j < chapter.segments.length; j++) {
+            const segment = chapter.segments[j];
+            html += `<div class="toc-segment-item" data-part="${chapter.partNumber - 1}" data-seg="${j}" onclick="selectNewBookSegment(${chapter.partNumber - 1}, ${j})" style="padding: 6px 10px; margin: 2px 0; border-radius: 4px; font-size: 12px; color: #475569; cursor: pointer; border-left: 2px solid #e2e8f0;">`;
+            html += `${j + 1}. ${escapeHtml(segment.title.substring(0, 20))}${segment.title.length > 20 ? '...' : ''}`;
+            html += `<span style="color: #94a3b8; font-size: 11px; margin-left: 4px;">(${(segment.word_count || 0).toLocaleString()}字)</span>`;
+            html += `</div>`;
+          }
+          html += `</div></div>`;
+        }
+        tocTree.innerHTML = html;
+      }
+      
+      window.togglePartExpand = function(partNumber) {
+        const segments = document.getElementById(`partSegments${partNumber}`);
+        const icon = document.getElementById(`partIcon${partNumber}`);
+        if (segments && icon) {
+          segments.style.display = segments.style.display === 'none' ? 'block' : 'none';
+          icon.textContent = segments.style.display === 'none' ? '▶' : '▼';
+        }
+      };
+      
+      window.selectNewBookSegment = function(partIndex, segmentIndex) {
+        if (!newBookStructure || !newBookStructure.chapters) return;
+        const chapter = newBookStructure.chapters[partIndex];
+        if (!chapter || !chapter.segments) return;
+        const segment = chapter.segments[segmentIndex];
+        if (!segment) return;
+        
+        document.querySelectorAll('.toc-segment-item').forEach(item => {
+          item.style.background = 'transparent';
+          item.style.borderLeftColor = '#e2e8f0';
+        });
+        const selectedItem = document.querySelector(`.toc-segment-item[data-part="${partIndex}"][data-seg="${segmentIndex}"]`);
+        if (selectedItem) {
+          selectedItem.style.background = '#e0e7ff';
+          selectedItem.style.borderLeftColor = '#6366f1';
+        }
+        
+        const previewTitle = document.getElementById('previewTitle');
+        if (previewTitle) {
+          previewTitle.innerHTML = `📄 Part ${chapter.partNumber} - ${escapeHtml(segment.title)} <span style="color: #94a3b8; font-size: 12px;">(${(segment.word_count || 0).toLocaleString()}字)</span>`;
+        }
+        const contentPreview = document.getElementById('newBookContentPreview');
+        if (contentPreview) {
+          contentPreview.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(segment.content)}</div>`;
+          contentPreview.scrollTop = 0;
+        }
+      };
+      
+      async function saveNewBookToDatabase() {
+        if (!newBookStructure || !newBookStructure.chapters) { alert('没有可保存的新书数据'); return; }
+        const saveBtn = document.getElementById('saveNewBookButton');
+        const restructureStatus = document.getElementById('restructureStatus');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '保存中...'; }
+        
+        try {
+          const entries = [];
+          for (const part of newBookStructure.chapters) {
+            for (const segment of part.segments) {
+              entries.push({ title: segment.title, title_zh: segment.title, content: segment.content, content_zh: segment.content, word_count: segment.word_count || 0, summary: part.summary || '' });
+            }
+          }
+          if (entries.length === 0) throw new Error('没有可保存的章节');
+          
+          const totalWordCount = entries.reduce((sum, e) => sum + (e.word_count || 0), 0);
+          const originalFilename = newBookStructure.originalBook?.filename || '未知书籍';
+          const newFilename = `${originalFilename.replace(/\.[^.]+$/, '')}_重构版.pdf`;
+          
+          if (restructureStatus) renderStatus(restructureStatus, '正在创建新书记录...', 'info');
+          
+          const startRes = await fetch('/api/parse/ingest/start', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: newFilename, chapter_count: entries.length, total_word_count: totalWordCount })
+          });
+          if (!startRes.ok) { const err = await startRes.json(); throw new Error(err.error || '创建书籍记录失败'); }
+          const startData = await startRes.json();
+          const bookId = startData.book_id;
+          
+          for (let i = 0; i < entries.length; i++) {
+            if (restructureStatus) renderStatus(restructureStatus, `正在保存第 ${i + 1}/${entries.length} 章...`, 'info');
+            await fetch('/api/parse/ingest/chapter', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ book_id: bookId, entry: entries[i], index: i })
+            });
+          }
+          
+          if (restructureStatus) renderStatus(restructureStatus, `✅ 新书保存成功！书籍ID: ${bookId}，共 ${entries.length} 章`, 'success');
+          alert(`新书保存成功！\n\n书名：${newFilename}\n章节数：${entries.length}\n总字数：${totalWordCount.toLocaleString()}\n\n可在「书籍管理」页面查看`);
+        } catch (error) {
+          console.error('保存新书失败:', error);
+          if (restructureStatus) renderStatus(restructureStatus, `保存失败: ${error.message}`, 'error');
+          alert(`保存失败: ${error.message}`);
+        } finally {
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 保存到数据库'; }
+        }
+      }
+      
+      const saveNewBookButton = document.getElementById('saveNewBookButton');
+      if (saveNewBookButton) saveNewBookButton.addEventListener('click', saveNewBookToDatabase);
+
+      // 存储解析后的Part信息（用于单个Part测试）
+      let parsedParts = [];
+
+      // 从重构目录更新Part选择器
+      function updatePartSelectorFromToc(parts) {
+        parsedParts = parts;
+        const selector = document.getElementById('partSelector');
+        if (!selector) return;
+        
+        selector.innerHTML = '<option value="">选择Part测试...</option>';
+        for (const part of parts) {
+          const coveredCount = part.coveredChapters ? part.coveredChapters.length : 0;
+          selector.innerHTML += `<option value="${part.partNumber}">Part ${part.partNumber}: ${part.title.substring(0, 20)}${part.title.length > 20 ? '...' : ''} (${coveredCount}章)</option>`;
+        }
+      }
+
+      // 更新Part选择器（从新书结构）
+      function updatePartSelector() {
+        const selector = document.getElementById('partSelector');
+        if (!selector || !newBookStructure || !newBookStructure.chapters) return;
+        
+        selector.innerHTML = '<option value="">选择Part...</option>';
+        for (const chapter of newBookStructure.chapters) {
+          const totalWords = chapter.segments.reduce((sum, seg) => sum + (seg.word_count || 0), 0);
+          selector.innerHTML += `<option value="${chapter.partNumber}">Part ${chapter.partNumber}: ${chapter.title.substring(0, 15)}... (${totalWords.toLocaleString()}字)</option>`;
+        }
+      }
+
+      // 测试单个Part（从重构目录直接测试）
+      async function generateSinglePart() {
+        const selector = document.getElementById('partSelector');
+        const btn = document.getElementById('generateSinglePartButton');
+        const restructureStatus = document.getElementById('restructureStatus');
+        const singlePartResult = document.getElementById('singlePartResult');
+        const singlePartResultContent = document.getElementById('singlePartResultContent');
+        
+        if (!selector || !selector.value) {
+          alert('请先选择要测试的Part');
+          return;
+        }
+        
+        const partNumber = parseInt(selector.value);
+        
+        // 从parsedParts中找到对应的Part
+        const part = parsedParts.find(p => p.partNumber === partNumber);
+        if (!part) {
+          alert('找不到指定的Part');
+          return;
+        }
+        
+        // 检查是否有原始章节数据
+        if (!restructureChapters || restructureChapters.length === 0) {
+          alert('没有原始章节数据，请先选择书籍');
+          return;
+        }
+        
+        // 根据coveredChapters获取原始章节内容
+        const coveredIndices = part.coveredChapters || [];
+        if (coveredIndices.length === 0) {
+          alert('该Part没有覆盖任何章节');
+          return;
+        }
+        
+        // 合并覆盖章节的内容
+        let combinedContent = '';
+        let totalWords = 0;
+        for (const chapterNum of coveredIndices) {
+          const chapterIndex = chapterNum - 1; // 转换为0-based索引
+          if (chapterIndex >= 0 && chapterIndex < restructureChapters.length) {
+            const chapter = restructureChapters[chapterIndex];
+            const content = chapter.content_zh || chapter.content || '';
+            if (content) {
+              combinedContent += (combinedContent ? '\n\n' : '') + content;
+              totalWords += chapter.word_count || content.replace(/\s/g, '').length;
+            }
+          }
+        }
+        
+        if (!combinedContent) {
+          alert('无法获取章节内容');
+          return;
+        }
+        
+        // 获取分割字数设置
+        const maxWordsInput = document.getElementById('restructureMaxWords');
+        const maxLength = maxWordsInput ? parseInt(maxWordsInput.value) || 3000 : 3000;
+        
+        if (btn) { btn.disabled = true; btn.textContent = '测试中...'; }
+        if (restructureStatus) renderStatus(restructureStatus, `正在测试 Part ${partNumber}: ${part.title}...`, 'info');
+        
+        try {
+          console.log(`测试 Part ${partNumber}: ${totalWords} 字，目标每段 ${maxLength} 字`);
+          console.log(`覆盖章节: ${coveredIndices.join(', ')}`);
+          
+          // 调用分割API
+          const response = await fetch('/api/restructure/split-article', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: combinedContent,
+              max_length: maxLength,
+              title: part.title
+            })
+          });
+          
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || '分割失败');
+          }
+          
+          const result = await response.json();
+          const segments = result.segments || [];
+          
+          if (segments.length === 0) {
+            throw new Error('分割结果为空');
+          }
+          
+          // 显示测试结果
+          if (singlePartResultContent) {
+            let html = `<div style="margin-bottom: 12px; padding: 10px; background: #fef3c7; border-radius: 6px;">`;
+            html += `<strong>Part ${partNumber}: ${escapeHtml(part.title)}</strong><br>`;
+            html += `<span style="color: #92400e; font-size: 13px;">覆盖章节: ${coveredIndices.join(', ')} | 总字数: ${totalWords.toLocaleString()} | 分割成 ${segments.length} 段</span>`;
+            html += `</div>`;
+            
+            html += `<div style="display: grid; gap: 8px;">`;
+            for (let i = 0; i < segments.length; i++) {
+              const seg = segments[i];
+              html += `<div style="padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer;" onclick="this.querySelector('.seg-content').style.display = this.querySelector('.seg-content').style.display === 'none' ? 'block' : 'none'">`;
+              html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
+              html += `<span style="font-weight: 500;">${i + 1}. ${escapeHtml(seg.title)}</span>`;
+              html += `<span style="color: #6b7280; font-size: 12px;">${(seg.word_count || 0).toLocaleString()}字</span>`;
+              html += `</div>`;
+              html += `<div class="seg-content" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #374151; max-height: 200px; overflow-y: auto; white-space: pre-wrap;">${escapeHtml(seg.content.substring(0, 500))}${seg.content.length > 500 ? '...' : ''}</div>`;
+              html += `</div>`;
+            }
+            html += `</div>`;
+            
+            singlePartResultContent.innerHTML = html;
+          }
+          
+          if (singlePartResult) {
+            singlePartResult.style.display = 'block';
+          }
+          
+          if (restructureStatus) {
+            renderStatus(restructureStatus, `✅ Part ${partNumber} 测试完成！共 ${segments.length} 个段落`, 'success');
+          }
+          
+        } catch (error) {
+          console.error('测试失败:', error);
+          if (restructureStatus) renderStatus(restructureStatus, `测试失败: ${error.message}`, 'error');
+          alert(`测试失败: ${error.message}`);
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = '🔄 测试该Part'; }
+        }
+      }
+      
+      const generateSinglePartButton = document.getElementById('generateSinglePartButton');
+      if (generateSinglePartButton) generateSinglePartButton.addEventListener('click', generateSinglePart);
 
       // 初始化
       document.addEventListener("DOMContentLoaded", () => {

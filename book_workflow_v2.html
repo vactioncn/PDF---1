@@ -1,0 +1,2179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>一站式书籍处理工作流</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        background-color: #f8fafc;
+        color: #0f172a;
+      }
+
+      /* 导航栏样式 */
+      .top-navbar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 12px 20px;
+        margin: -24px -24px 24px -24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+      }
+
+      .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .nav-brand {
+        color: white;
+        font-weight: 600;
+        font-size: 18px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .nav-brand:hover {
+        opacity: 0.9;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .nav-link {
+        color: white;
+        text-decoration: none;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+
+      .nav-link:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .nav-link.active {
+        background: rgba(255, 255, 255, 0.25);
+        font-weight: 500;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 32px;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .subtitle {
+        color: #64748b;
+        font-size: 14px;
+        margin-bottom: 32px;
+      }
+
+      .panel {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 24px;
+        border: 1px solid #e2e8f0;
+      }
+
+      .panel h2 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .control-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        flex: 1;
+        min-width: 300px;
+      }
+
+      .control-group.primary {
+        flex: 2;
+        min-width: 400px;
+      }
+
+      input[type="file"] {
+        flex: 1;
+        min-width: 200px;
+        padding: 10px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #ffffff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      input[type="file"]:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      input[type="password"],
+      input[type="text"],
+      input[type="number"] {
+        flex: 1;
+        min-width: 180px;
+        padding: 10px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #ffffff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        margin-right: 8px;
+      }
+
+      label.checkbox-label {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        color: #1e293b;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      input[type="password"]:focus,
+      input[type="text"]:focus,
+      input[type="number"]:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      select {
+        padding: 10px 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #ffffff;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      select:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 120px;
+      }
+
+      textarea:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        background: #2563eb;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+
+      button.secondary {
+        background: #10b981;
+      }
+
+      button:disabled {
+        background: #cbd5e1;
+        color: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      }
+
+      button.secondary:hover:not(:disabled) {
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      th {
+        padding: 16px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      td {
+        padding: 16px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: top;
+        font-size: 14px;
+      }
+
+      tbody tr {
+        transition: background-color 0.15s ease;
+      }
+
+      tbody tr:hover {
+        background: rgba(102, 126, 234, 0.05);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .status {
+        margin-top: 16px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        background: #f1f5f9;
+        border-left: 4px solid #cbd5e1;
+      }
+
+      .status.info {
+        background: #eff6ff;
+        border-left-color: #3b82f6;
+        color: #1e40af;
+      }
+
+      .status.success {
+        background: #f0fdf4;
+        border-left-color: #10b981;
+        color: #065f46;
+      }
+
+      .status.error {
+        background: #fef2f2;
+        border-left-color: #ef4444;
+        color: #991b1b;
+      }
+
+      .progress-wrapper {
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      .progress-wrapper.active {
+        display: block;
+      }
+
+      .progress-label {
+        font-size: 14px;
+        color: #475569;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 10px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .progress-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #4f46e5 0%, #14b8a6 100%);
+        transition: width 0.3s ease;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* 步骤条样式 */
+      .steps-bar {
+        display: flex;
+        background: #fff;
+        border-radius: 12px;
+        padding: 0;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+      }
+
+      .step-item {
+        flex: 1;
+        padding: 16px 12px;
+        text-align: center;
+        cursor: pointer;
+        border-right: 1px solid #eee;
+        transition: all 0.2s;
+        background: #fff;
+      }
+
+      .step-item:last-child {
+        border-right: none;
+      }
+
+      .step-item:hover {
+        background: #f8f9fa;
+      }
+
+      .step-item.active {
+        background: #6366f1;
+        color: #fff;
+      }
+
+      .step-item.done {
+        background: #10b981;
+        color: #fff;
+      }
+
+      .step-num {
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .step-name {
+        font-size: 12px;
+        margin-top: 4px;
+      }
+
+      .panel.hidden {
+        display: none;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 16px;
+        }
+
+        .panel {
+          padding: 20px;
+        }
+
+        .control-group {
+          min-width: 100%;
+        }
+
+        .control-group.primary {
+          min-width: 100%;
+        }
+
+        table {
+          font-size: 12px;
+        }
+
+        th,
+        td {
+          padding: 12px 8px;
+        }
+
+        button {
+          font-size: 13px;
+          padding: 8px 16px;
+        }
+      }
+
+      dialog {
+        border: none;
+        border-radius: 16px;
+        padding: 0;
+        width: min(800px, 90vw);
+        max-height: 85vh;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      }
+
+      dialog h3 {
+        margin: 0;
+        padding: 24px 28px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 20px;
+        font-weight: 600;
+        border-radius: 16px 16px 0 0;
+      }
+
+      dialog .modal-body {
+        padding: 24px 28px;
+        overflow-y: auto;
+        max-height: calc(85vh - 140px);
+        white-space: pre-wrap;
+        line-height: 1.8;
+        color: #334155;
+        font-size: 14px;
+      }
+
+      dialog > div:last-child {
+        padding: 20px 28px;
+        background: #f8fafc;
+        border-radius: 0 0 16px 16px;
+        border-top: 1px solid #e2e8f0;
+      }
+
+      dialog::backdrop {
+        background-color: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(4px);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 导航栏 -->
+    <nav class="top-navbar">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">📚 PDF解读系统</a>
+        <div class="nav-links">
+          <a href="/" class="nav-link">🏠 首页</a>
+          <a href="/aigen_test_page.html" class="nav-link">✨ 个性化解读</a>
+          <a href="/book_workflow_v2.html" class="nav-link active">📖 一站式处理</a>
+          <a href="/book_restructure_page.html" class="nav-link">📚 书籍重构</a>
+          <a href="/parser_test_page.html" class="nav-link">📄 文档解析</a>
+          <a href="/admin_books.html" class="nav-link">📖 书籍管理</a>
+          <a href="/admin.html" class="nav-link">⚙️ 系统管理</a>
+        </div>
+      </div>
+    </nav>
+
+    <h1>📚 一站式书籍处理工作流</h1>
+    <p class="subtitle">完整流程：上传文件 → 目录清洗 → 解析入库 → 重构目录 → 生成新书 → 新书入库</p>
+
+    <!-- 步骤条 -->
+    <div class="steps-bar">
+      <div class="step-item active" data-step="1"><div class="step-num">1</div><div class="step-name">上传文件</div></div>
+      <div class="step-item" data-step="2"><div class="step-num">2</div><div class="step-name">目录清洗</div></div>
+      <div class="step-item" data-step="3"><div class="step-num">3</div><div class="step-name">解析入库</div></div>
+      <div class="step-item" data-step="4"><div class="step-num">4</div><div class="step-name">重构目录</div></div>
+      <div class="step-item" data-step="5"><div class="step-num">5</div><div class="step-name">生成新书</div></div>
+      <div class="step-item" data-step="6"><div class="step-num">6</div><div class="step-name">新书入库</div></div>
+    </div>
+
+    <!-- 步骤1: 上传文件 -->
+    <section id="panel1" class="panel">
+      <h2>📄 步骤1: 上传文件</h2>
+      <div class="controls">
+        <div class="control-group primary">
+          <input type="file" id="pdfFile" accept="application/pdf,application/epub+zip,.pdf,.epub" />
+          <label class="checkbox-label">
+            <input type="checkbox" id="translateBookCheckbox" />
+            <span>是否翻译书籍（英文书）</span>
+          </label>
+          <button id="loadFromDbButton" style="background: #8b5cf6;">📚 从数据库加载</button>
+        </div>
+      </div>
+      <div class="status" id="status1"></div>
+    </section>
+
+    <!-- 步骤2: 目录清洗 -->
+    <section id="panel2" class="panel hidden">
+      <h2>🧹 步骤2: 目录清洗</h2>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">使用大模型过滤前言、附录等非正文内容，保留核心章节</p>
+      <div class="controls">
+        <button id="cleanTocButton" disabled>开始目录清洗</button>
+      </div>
+      <div class="status" id="status2"></div>
+      <div id="tocPreview" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; max-height: 300px; overflow-y: auto;"></div>
+    </section>
+
+    <!-- 步骤3: 解析入库 -->
+    <section id="panel3" class="panel hidden">
+      <h2>📊 步骤3: 解析内容与入库</h2>
+      <div class="controls" style="margin-bottom: 16px;">
+        <button id="extractButton" disabled>解析章节内容</button>
+        <button id="translateAllButton" style="background: #10b981; display: none;">🌐 一键翻译全部</button>
+        <button id="ingestButton" class="secondary" disabled>基本信息入库</button>
+      </div>
+      <div id="progressWrapper" class="progress-wrapper">
+        <div id="progressLabel" class="progress-label">准备中...</div>
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+      </div>
+      <div class="status" id="status3"></div>
+      <div id="chapterTable" style="display: none; margin-top: 16px;">
+        <table>
+          <thead>
+            <tr>
+              <th>目录标题</th>
+              <th>内容</th>
+              <th>字数</th>
+              <th>翻译</th>
+              <th>概述</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody">
+            <tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 40px;">等待解析结果...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 步骤4: 重构目录 -->
+    <section id="panel4" class="panel hidden">
+      <h2>🔄 步骤4: 重构目录</h2>
+      <div class="controls" style="margin-bottom: 16px;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #475569;">
+          <span>分割字数上限：</span>
+          <input type="number" id="restructureMaxWords" value="5000" min="1000" max="20000" step="500" style="width: 100px;" />
+          <span style="color: #94a3b8;">字/段</span>
+        </label>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #475569;">目录重构提示词</label>
+        <textarea id="restructurePrompt" rows="10"></textarea>
+      </div>
+      <div class="controls">
+        <button id="restructureTocButton" disabled>🔄 开始重构目录</button>
+      </div>
+      <div class="status" id="status4"></div>
+      <details id="thinkingDetails" style="display: none; margin-top: 16px;">
+        <summary style="cursor: pointer; padding: 8px 12px; background: #fef3c7; border-radius: 6px; font-weight: 500; color: #92400e;">💭 查看思考过程</summary>
+        <div id="thinkingContent" style="margin-top: 8px; padding: 12px; background: #fffbeb; border-radius: 6px; font-size: 13px; line-height: 1.7; color: #78350f; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></div>
+      </details>
+      <div id="newTocPreview" style="display: none; margin-top: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; white-space: pre-wrap; line-height: 1.8; font-size: 14px;"></div>
+    </section>
+
+    <!-- 步骤5: 生成新书 -->
+    <section id="panel5" class="panel hidden">
+      <h2>📖 步骤5: 生成新书</h2>
+      <div class="controls" style="margin-bottom: 16px;">
+        <select id="partSelector" style="min-width: 200px;">
+          <option value="">选择Part测试...</option>
+        </select>
+        <button id="testPartButton" style="background: #f59e0b;" disabled>🔄 测试该Part</button>
+        <button id="generateNewBookButton" class="secondary" disabled>📖 生成整本新书</button>
+      </div>
+      <div id="progressWrapper5" class="progress-wrapper">
+        <div id="progressLabel5" class="progress-label">准备中...</div>
+        <div class="progress-bar">
+          <div id="progressFill5" class="progress-fill"></div>
+        </div>
+      </div>
+      <div class="status" id="status5"></div>
+      <div id="singlePartResult" style="display: none; margin-top: 16px; padding: 16px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;"></div>
+      <div id="newBookPreview" style="display: none; margin-top: 16px;">
+        <div style="display: grid; grid-template-columns: 280px 1fr; gap: 16px;">
+          <div style="background: #f8fafc; border-radius: 8px; padding: 16px;">
+            <h3 style="margin: 0 0 12px; font-size: 14px; color: #475569;">📑 新书目录</h3>
+            <div id="newBookTocTree" style="max-height: 400px; overflow-y: auto;"></div>
+          </div>
+          <div style="background: #fff; border-radius: 8px; padding: 16px; border: 1px solid #e2e8f0;">
+            <h3 id="previewTitle" style="margin: 0 0 12px; font-size: 14px; color: #475569;">📄 选择左侧章节查看内容</h3>
+            <div id="newBookContentPreview" style="min-height: 300px; max-height: 400px; overflow-y: auto; line-height: 1.8; color: #334155; font-size: 14px;">
+              <p style="color: #94a3b8; text-align: center; margin-top: 100px;">点击左侧目录查看内容</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 步骤6: 新书入库 -->
+    <section id="panel6" class="panel hidden">
+      <h2>💾 步骤6: 新书入库</h2>
+      <div class="controls">
+        <label style="display: flex; align-items: center; gap: 8px; flex: 1;">
+          <span style="white-space: nowrap;">新书名称：</span>
+          <input type="text" id="newBookName" style="flex: 1;" placeholder="输入新书名称..." />
+        </label>
+        <button id="saveNewBookButton" class="secondary" disabled>💾 保存到数据库</button>
+      </div>
+      <div id="newBookSummary" style="margin-top: 12px; font-size: 13px; color: #64748b;"></div>
+      <div class="status" id="status6"></div>
+    </section>
+
+    <!-- 目录对比弹窗 -->
+    <dialog id="tocCompareDialog" style="max-width: 90vw; width: 1200px; padding: 0; border-radius: 12px;">
+      <div style="padding: 24px; border-bottom: 1px solid #e2e8f0;">
+        <h3 style="margin: 0; font-size: 20px; font-weight: 600; background: none; padding: 0; color: #1e293b;">目录清洗对比</h3>
+      </div>
+      <div style="padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-height: 70vh; overflow-y: auto;">
+        <div>
+          <h4 style="margin: 0 0 16px 0; color: #64748b; font-size: 14px; font-weight: 600;">清洗前 (共 <span id="rawCount">0</span> 项)</h4>
+          <div id="rawTocList" style="background: #f8fafc; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.8; max-height: 60vh; overflow-y: auto;"></div>
+        </div>
+        <div>
+          <h4 style="margin: 0 0 16px 0; color: #10b981; font-size: 14px; font-weight: 600;">清洗后 (共 <span id="cleanedCount">0</span> 项)</h4>
+          <div id="cleanedTocList" style="background: #f0fdf4; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.8; max-height: 60vh; overflow-y: auto;"></div>
+        </div>
+      </div>
+      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; text-align: right;">
+        <button id="closeTocDialog">关闭</button>
+      </div>
+    </dialog>
+
+    <!-- 内容查看弹窗 -->
+    <dialog id="contentDialog">
+      <h3 id="dialogTitle"></h3>
+      <div class="modal-body" id="dialogContent"></div>
+      <div style="text-align: right">
+        <button id="closeDialog">关闭</button>
+      </div>
+    </dialog>
+
+    <!-- 从数据库加载书籍弹窗 -->
+    <dialog id="loadBookDialog" style="max-width: 90vw; width: 1000px; padding: 0; border-radius: 12px; max-height: 90vh;">
+      <div style="padding: 24px; border-bottom: 1px solid #e2e8f0; background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; border-radius: 12px 12px 0 0;">
+        <h3 style="margin: 0; font-size: 20px; font-weight: 600; background: none; padding: 0;">📚 从数据库加载书籍</h3>
+        <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">选择已解析的书籍，直接加载其目录和内容</p>
+      </div>
+      <div style="padding: 24px; max-height: calc(90vh - 140px); overflow-y: auto;">
+        <div style="margin-bottom: 16px;">
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+            <input type="text" id="bookSearchInput" placeholder="搜索书籍名称..." style="flex: 1;" />
+            <button id="refreshBooksBtn" style="background: #64748b;">刷新</button>
+          </div>
+        </div>
+        <div id="booksList" style="display: grid; gap: 12px;">
+          <div style="text-align: center; padding: 40px; color: #94a3b8;"><span class="loading"></span> 加载中...</div>
+        </div>
+      </div>
+      <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; text-align: right; background: #f8fafc; border-radius: 0 0 12px 12px;">
+        <button id="closeLoadBookDialog">关闭</button>
+      </div>
+    </dialog>
+
+
+    <script>
+      // ===== 默认的目录重构提示词（完整版，从 book_restructure_page.html 复制） =====
+      const DEFAULT_RESTRUCTURE_PROMPT = `你是一位超厉害的深度阅读达人，特别擅长结构化分析。现在要根据全书的"章节标题 + 摘要"，给这本书搭建一个超清晰的高层语义结构。
+
+下面有一组章节信息，每一项都包含章节编号、章节标题和章节摘要：
+<chapters>
+{chapters}
+</chapters>
+
+你的任务是，依据这些标题和摘要，把整本书重新分成合适数量的高层主题（Part）。
+
+具体要求如下：
+
+1. 好好吃透全书内容：
+   - 认真读完所有章节的标题和摘要。
+   - 找出全书的核心思想、主要话题，还有作者想要解决的问题。
+
+2. 按原书顺序划分"大主题 / 篇章（Part）"：
+   - **关键约束：每个 Part 必须包含连续的章节，严禁跳跃式分组。** 比如可以是"1、2、3、4"或"5、6、7"，绝对不能出现"2、6、10、14"这种不连续的情况。
+   - 你的任务是找到合适的"切分点"，把全书按顺序切成几个大块。
+   - 根据内容实际情况决定 Part 数量，可能是 2 个、3 个、5 个甚至更多。
+   - 每个主题里面的内容得紧密相关。
+   - 主题名称要通俗易懂，生动有趣，让人看了就想读，别搞那种很学术的风格。
+
+3. 列出每个主题包含的章节编号（必须连续且按顺序），再给每个主题写一个新的摘要。
+
+输出格式必须是下面这样（Part 数量根据实际内容决定）：
+
+Part 1：{主题名称}
+    覆盖章节：{连续的章节编号列表，如 1、2、3、4}
+    摘要：{对该主题内容的简要概括}
+
+Part 2：{主题名称}
+    覆盖章节：{连续的章节编号列表，如 5、6、7、8}
+    摘要：{对该主题内容的简要概括}
+
+...（根据实际内容继续，不限制 Part 数量）
+
+别做多余解释，也别重复给摘要，只要给出"主题名称 + 包含章节 + 主题摘要"就行。`;
+
+      // ===== 全局状态 =====
+      let currentStep = 1;
+      let parsedEntries = [];
+      let currentFilename = "";
+      let cleanedTocData = null;
+      let currentFileType = null;
+      let restructuredTocContent = null;
+      let parsedParts = [];
+      let newBookStructure = null;
+      let restructureChapters = [];
+      let allBooks = [];
+
+      // ===== DOM 元素引用 =====
+      const pdfFile = document.getElementById("pdfFile");
+      const translateBookCheckbox = document.getElementById("translateBookCheckbox");
+      const loadFromDbButton = document.getElementById("loadFromDbButton");
+      const cleanTocButton = document.getElementById("cleanTocButton");
+      const extractButton = document.getElementById("extractButton");
+      const translateAllButton = document.getElementById("translateAllButton");
+      const ingestButton = document.getElementById("ingestButton");
+      const restructureTocButton = document.getElementById("restructureTocButton");
+      const restructurePrompt = document.getElementById("restructurePrompt");
+      const restructureMaxWords = document.getElementById("restructureMaxWords");
+      const partSelector = document.getElementById("partSelector");
+      const testPartButton = document.getElementById("testPartButton");
+      const generateNewBookButton = document.getElementById("generateNewBookButton");
+      const saveNewBookButton = document.getElementById("saveNewBookButton");
+      const newBookName = document.getElementById("newBookName");
+      const resultsBody = document.getElementById("resultsBody");
+      const progressWrapper = document.getElementById("progressWrapper");
+      const progressLabel = document.getElementById("progressLabel");
+      const progressFill = document.getElementById("progressFill");
+      const progressWrapper5 = document.getElementById("progressWrapper5");
+      const progressLabel5 = document.getElementById("progressLabel5");
+      const progressFill5 = document.getElementById("progressFill5");
+      const tocCompareDialog = document.getElementById("tocCompareDialog");
+      const contentDialog = document.getElementById("contentDialog");
+      const loadBookDialog = document.getElementById("loadBookDialog");
+
+      // ===== 工具函数 =====
+      function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        if (typeof text !== 'string') text = String(text);
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function renderStatus(elementId, message, type = "info") {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        element.className = `status ${type}`;
+        const loading = type === "info" && (message.includes("正在") || message.includes("请稍候")) 
+          ? '<span class="loading"></span>' 
+          : '';
+        element.innerHTML = loading + message;
+        element.style.display = 'block';
+      }
+
+      function calculateWordCount(text) {
+        if (!text) return 0;
+        return text.replace(/\s+/g, "").length;
+      }
+
+      function showProgress(wrapper, fill, label, total = 0, labelText = "正在准备...") {
+        if (!wrapper) return;
+        wrapper.classList.add("active");
+        wrapper.style.display = "block";
+        updateProgress(wrapper, fill, label, 0, total, labelText);
+      }
+
+      function updateProgress(wrapper, fill, labelEl, completed, total, labelText) {
+        if (!wrapper) return;
+        if (!wrapper.classList.contains("active")) wrapper.classList.add("active");
+        if (wrapper.style.display !== "block") wrapper.style.display = "block";
+        const percent = total > 0 ? Math.min(100, Math.max(0, Math.round((completed / total) * 100))) : 0;
+        if (fill) fill.style.width = `${percent}%`;
+        if (labelEl) labelEl.textContent = labelText || `进度：${completed}/${total} (${percent}%)`;
+      }
+
+      function hideProgress(wrapper, fill) {
+        if (!wrapper) return;
+        wrapper.classList.remove("active");
+        wrapper.style.display = "none";
+        if (fill) fill.style.width = "0%";
+      }
+
+      // ===== 步骤导航 =====
+      function goToStep(n) {
+        document.querySelectorAll('.step-item').forEach((s, i) => {
+          s.classList.remove('active', 'done');
+          if (i + 1 < n) s.classList.add('done');
+          else if (i + 1 === n) s.classList.add('active');
+        });
+        for (let i = 1; i <= 6; i++) {
+          const panel = document.getElementById(`panel${i}`);
+          if (panel) panel.classList.toggle('hidden', i > n);
+        }
+        currentStep = n;
+      }
+
+      document.querySelectorAll('.step-item').forEach(s => {
+        s.addEventListener('click', () => {
+          const n = parseInt(s.dataset.step);
+          if (n <= currentStep) goToStep(n);
+        });
+      });
+
+      // ===== 生成目录与摘要文本（从 book_restructure_page.html 复制） =====
+      function generateTocSummaryText(entries) {
+        if (!entries || entries.length === 0) return "";
+        let text = "";
+        for (let i = 0; i < entries.length; i++) {
+          const entry = entries[i];
+          const chapterNumber = i + 1;
+          const chapterTitle = entry.title_zh || entry.title || `第${chapterNumber}章`;
+          const chapterSummary = entry.summary || "";
+          text += `${chapterNumber}. ${chapterTitle}`;
+          if (chapterSummary) text += `\n${chapterSummary}`;
+          text += "\n\n";
+        }
+        return text.trim();
+      }
+
+
+      // ===== 深度思考模型调用（从 book_restructure_page.html 复制） =====
+      async function interpretWithDeepThinking(content, prompt, options = {}) {
+        const {
+          model = 'doubao-seed-1-6-251015',
+          temperature = 0.3,
+          max_tokens = 16000,
+          timeout = 300000,
+          replacements = {}
+        } = options;
+
+        let finalPrompt = prompt;
+        const safeReplacements = (replacements && typeof replacements === 'object' && !Array.isArray(replacements)) ? replacements : {};
+        if (content && !safeReplacements.chapter_fulltext) {
+          safeReplacements.chapter_fulltext = content;
+        }
+        if (safeReplacements && typeof safeReplacements === 'object' && !Array.isArray(safeReplacements)) {
+          const keys = Object.keys(safeReplacements);
+          for (let i = 0; i < keys.length; i++) {
+            const placeholder = keys[i];
+            const value = safeReplacements[placeholder];
+            if (value !== undefined && value !== null) {
+              const regex = new RegExp(`{${placeholder}}`, 'g');
+              finalPrompt = finalPrompt.replace(regex, String(value));
+            }
+          }
+        }
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
+          
+          let response;
+          try {
+            response = await fetch("/api/test/doubao-thinking", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Accept": "application/json" },
+              body: JSON.stringify({
+                prompt: finalPrompt,
+                temperature: temperature,
+                max_tokens: max_tokens,
+                model: model,
+              }),
+              signal: controller.signal,
+            });
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === "AbortError") {
+              throw new Error("请求超时（超过5分钟），请稍后重试");
+            }
+            const errorMsg = fetchError.message || String(fetchError);
+            if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+              throw new Error("无法连接到服务器，请检查服务器是否正在运行");
+            }
+            throw new Error(`网络请求失败: ${errorMsg}`);
+          }
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            let errorMessage = "生成失败";
+            try {
+              const errorText = await response.text();
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (e) {
+              errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+          }
+
+          let data;
+          try {
+            data = await response.json();
+          } catch (jsonError) {
+            throw new Error(`服务器响应格式错误: ${jsonError.message}`);
+          }
+          
+          if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            throw new Error('后端返回的数据格式不正确');
+          }
+          
+          return {
+            reasoning_content: (data.reasoning_content && typeof data.reasoning_content === 'string') ? data.reasoning_content : null,
+            content: (data.content && typeof data.content === 'string') ? data.content : null,
+            success: true
+          };
+
+        } catch (error) {
+          let errorMessage = "解读失败";
+          if (error.name === "AbortError" || error.name === "TimeoutError") {
+            errorMessage = "请求超时，请稍后重试";
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          throw new Error(errorMessage);
+        }
+      }
+
+      // ===== 解析新目录结构（从 book_restructure_page.html 复制） =====
+      function parseNewTocStructure(tocText) {
+        if (!tocText) {
+          console.warn("parseNewTocStructure: tocText 为空");
+          return [];
+        }
+        
+        console.log("开始解析目录结构，原始文本长度:", tocText.length);
+        
+        const parts = [];
+        const lines = tocText.split('\n');
+        let currentPart = null;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const trimmedLine = line.trim();
+          
+          if (!trimmedLine) continue;
+          
+          const partMatch = trimmedLine.match(/^(?:Part|PART|部分|第\s*)?\s*(\d+)[：:：]\s*(.+)$/i);
+          if (partMatch) {
+            if (currentPart) {
+              parts.push(currentPart);
+            }
+            const partNumber = parseInt(partMatch[1]);
+            const title = partMatch[2].trim();
+            currentPart = {
+              partNumber: partNumber,
+              title: title,
+              coveredChapters: [],
+              summary: ""
+            };
+            continue;
+          }
+          
+          if (currentPart) {
+            const coveredMatch = trimmedLine.match(/覆盖章节[：:：]\s*(.+)$/);
+            if (coveredMatch) {
+              const chapterText = coveredMatch[1].trim();
+              const chapterNumbers = chapterText
+                .split(/[，,、\s\t]+/)
+                .map(n => {
+                  const cleaned = n.replace(/[（）()\[\]【】""''、,，]/g, '').trim();
+                  const num = parseInt(cleaned);
+                  return isNaN(num) ? null : num;
+                })
+                .filter(n => n !== null && n > 0);
+              
+              currentPart.coveredChapters = chapterNumbers;
+              continue;
+            }
+          }
+          
+          if (currentPart) {
+            const summaryMatch = trimmedLine.match(/摘要[：:：]\s*(.+)$/);
+            if (summaryMatch) {
+              currentPart.summary = summaryMatch[1].trim();
+              continue;
+            }
+          }
+        }
+        
+        if (currentPart) {
+          parts.push(currentPart);
+        }
+        
+        const sortedParts = parts.sort((a, b) => a.partNumber - b.partNumber);
+        console.log(`解析完成，共找到 ${sortedParts.length} 个部分`);
+        sortedParts.forEach(p => {
+          console.log(`Part ${p.partNumber}: ${p.title}, 覆盖章节: [${p.coveredChapters.join(', ')}]`);
+        });
+        return sortedParts;
+      }
+
+      // ===== 章节分割函数（从 book_restructure_page.html 复制） =====
+      async function splitChapterContent(title, content, maxWordCount) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000);
+        
+        try {
+          const response = await fetch("/api/restructure/split-chapter", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({
+              title: title || "未命名章节",
+              content: content.trim(),
+              max_word_count: maxWordCount,
+              word_count: 0
+            }),
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            let errorMessage = `分割失败 (状态码: ${response.status})`;
+            try {
+              const errorText = await response.text();
+              try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error || errorMessage;
+              } catch (e) {
+                errorMessage = errorText || errorMessage;
+              }
+            } catch (e) {}
+            throw new Error(errorMessage);
+          }
+          
+          let splitResult;
+          try {
+            splitResult = await response.json();
+          } catch (jsonError) {
+            throw new Error(`服务器响应格式错误: ${jsonError.message}`);
+          }
+          
+          const segments = splitResult.segments || [];
+          if (segments.length === 0) {
+            throw new Error("分割失败，未生成任何片段");
+          }
+          
+          return segments.map((segment, index) => ({
+            title: segment.title || `第${index + 1}部分`,
+            content: segment.content || "",
+            word_count: segment.word_count || 0
+          }));
+          
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === "AbortError") {
+            throw new Error("请求超时（超过10分钟），请稍后重试");
+          }
+          const errorMsg = fetchError.message || String(fetchError);
+          if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+            throw new Error("无法连接到服务器");
+          }
+          throw fetchError;
+        }
+      }
+
+
+      // ===== 步骤1: 文件上传 =====
+      pdfFile.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+          currentFilename = e.target.files[0].name;
+          renderStatus("status1", `已选择文件: ${currentFilename}`, "success");
+          cleanTocButton.disabled = false;
+          goToStep(2);
+        }
+      });
+
+      // 从数据库加载书籍
+      loadFromDbButton.addEventListener("click", async () => {
+        loadBookDialog.showModal();
+        await loadBooksFromDatabase();
+      });
+
+      document.getElementById("closeLoadBookDialog").addEventListener("click", () => loadBookDialog.close());
+      document.getElementById("refreshBooksBtn").addEventListener("click", loadBooksFromDatabase);
+      document.getElementById("bookSearchInput").addEventListener("input", (e) => filterBooks(e.target.value));
+
+      async function loadBooksFromDatabase() {
+        const booksList = document.getElementById("booksList");
+        booksList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;"><span class="loading"></span> 加载中...</div>';
+        
+        try {
+          const response = await fetch("/api/admin/books?page=1&per_page=100");
+          const data = await response.json();
+          if (data.error) throw new Error(data.error);
+          allBooks = data.books || [];
+          renderBooksList(allBooks);
+        } catch (error) {
+          booksList.innerHTML = `<div style="text-align: center; padding: 40px; color: #ef4444;">加载失败: ${error.message}</div>`;
+        }
+      }
+
+      function renderBooksList(books) {
+        const booksList = document.getElementById("booksList");
+        if (books.length === 0) {
+          booksList.innerHTML = '<div style="text-align: center; padding: 40px; color: #94a3b8;">暂无书籍数据</div>';
+          return;
+        }
+        
+        booksList.innerHTML = "";
+        books.forEach((book) => {
+          const bookCard = document.createElement("div");
+          bookCard.style.cssText = "padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; cursor: pointer; transition: all 0.2s;";
+          bookCard.onmouseover = () => { bookCard.style.borderColor = "#8b5cf6"; bookCard.style.boxShadow = "0 4px 12px rgba(139, 92, 246, 0.1)"; };
+          bookCard.onmouseout = () => { bookCard.style.borderColor = "#e2e8f0"; bookCard.style.boxShadow = "none"; };
+          bookCard.onclick = () => loadBookFromDatabase(book.id);
+          
+          bookCard.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+              <div style="font-weight: 600; font-size: 16px; color: #1e293b;">${escapeHtml(book.filename)}</div>
+              <div style="font-size: 12px; color: #64748b;">ID: ${book.id}</div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; font-size: 13px;">
+              <div><div style="color: #64748b; margin-bottom: 4px;">章节数</div><div style="color: #1e293b; font-weight: 500;">${book.chapter_count} 章</div></div>
+              <div><div style="color: #64748b; margin-bottom: 4px;">总字数</div><div style="color: #1e293b; font-weight: 500;">${(book.total_word_count||0).toLocaleString()} 字</div></div>
+              <div><div style="color: #64748b; margin-bottom: 4px;">入库时间</div><div style="color: #1e293b; font-weight: 500; font-size: 12px;">${new Date(book.created_at).toLocaleDateString("zh-CN")}</div></div>
+            </div>
+          `;
+          booksList.appendChild(bookCard);
+        });
+      }
+
+      function filterBooks(searchText) {
+        if (!searchText.trim()) { renderBooksList(allBooks); return; }
+        const filtered = allBooks.filter(book => book.filename.toLowerCase().includes(searchText.toLowerCase()));
+        renderBooksList(filtered);
+      }
+
+      async function loadBookFromDatabase(bookId) {
+        loadBookDialog.close();
+        renderStatus("status1", "正在从数据库加载书籍数据...", "info");
+        
+        try {
+          const response = await fetch(`/api/admin/books/${bookId}`);
+          const data = await response.json();
+          if (data.error) throw new Error(data.error);
+          
+          const book = data.book;
+          const chapters = data.chapters || [];
+          if (chapters.length === 0) throw new Error("该书籍没有章节数据");
+          
+          parsedEntries = chapters.map((chapter, index) => ({
+            title: chapter.title || `第 ${index + 1} 章`,
+            title_zh: chapter.title_zh || chapter.title || `第 ${index + 1} 章`,
+            content: chapter.content || "",
+            content_zh: chapter.content_zh || chapter.content || "",
+            word_count: chapter.word_count || 0,
+            summary: chapter.summary || ""
+          }));
+          
+          restructureChapters = parsedEntries;
+          currentFilename = book.filename;
+          cleanedTocData = null;
+          
+          renderTable(parsedEntries);
+          document.getElementById("chapterTable").style.display = "block";
+          
+          renderStatus("status1", `成功加载书籍: ${book.filename} (${chapters.length} 章)`, "success");
+          restructureTocButton.disabled = false;
+          goToStep(4);
+        } catch (error) {
+          renderStatus("status1", `加载失败: ${error.message}`, "error");
+        }
+      }
+
+      // ===== 步骤2: 目录清洗 =====
+      cleanTocButton.addEventListener("click", async () => {
+        if (!pdfFile.files.length) {
+          renderStatus("status2", "请先选择一个文件", "error");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", pdfFile.files[0]);
+
+        cleanTocButton.disabled = true;
+        renderStatus("status2", "正在清洗目录，请稍候...", "info");
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+          const response = await fetch("/api/parse/clean_toc", {
+            method: "POST",
+            body: formData,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || `清洗目录失败 (状态码: ${response.status})`);
+
+          cleanedTocData = payload.cleaned_toc || [];
+          currentFilename = payload.filename || "未知文件";
+          currentFileType = payload.file_type || null;
+          
+          renderStatus("status2", `目录清洗完成，保留 ${cleanedTocData.length} 个章节`, "success");
+          renderTocCompare(payload.raw_toc || [], payload.cleaned_toc || []);
+          extractButton.disabled = false;
+          goToStep(3);
+        } catch (error) {
+          renderStatus("status2", error.message, "error");
+          cleanedTocData = null;
+          extractButton.disabled = true;
+        } finally {
+          cleanTocButton.disabled = false;
+        }
+      });
+
+      function renderTocCompare(rawToc, cleanedToc) {
+        document.getElementById("rawCount").textContent = rawToc.length;
+        document.getElementById("cleanedCount").textContent = cleanedToc.length;
+
+        const rawTocList = document.getElementById("rawTocList");
+        rawTocList.innerHTML = "";
+        rawToc.forEach((item) => {
+          const div = document.createElement("div");
+          div.style.paddingLeft = `${(item.level - 1) * 20}px`;
+          div.style.marginBottom = "4px";
+          div.textContent = `${item.title} (第${item.page}页)`;
+          rawTocList.appendChild(div);
+        });
+
+        const cleanedTocList = document.getElementById("cleanedTocList");
+        cleanedTocList.innerHTML = "";
+        cleanedToc.forEach((item) => {
+          const div = document.createElement("div");
+          div.style.paddingLeft = `${(item.level - 1) * 20}px`;
+          div.style.marginBottom = "4px";
+          div.textContent = `${item.title} (第${item.page}页)`;
+          cleanedTocList.appendChild(div);
+        });
+
+        tocCompareDialog.showModal();
+      }
+
+      document.getElementById("closeTocDialog").addEventListener("click", () => tocCompareDialog.close());
+
+
+      // ===== 步骤3: 解析内容与入库 =====
+      extractButton.addEventListener("click", async () => {
+        if (!pdfFile.files.length) {
+          renderStatus("status3", "请先选择一个文件", "error");
+          return;
+        }
+
+        if (!cleanedTocData || cleanedTocData.length === 0) {
+          renderStatus("status3", "请先完成步骤2：目录清洗", "error");
+          return;
+        }
+
+        extractButton.disabled = true;
+        renderStatus("status3", "正在提取内容并统计，请稍候...", "info");
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+          const formDataWithJson = new FormData();
+          formDataWithJson.append("file", pdfFile.files[0]);
+          formDataWithJson.append("cleaned_toc", JSON.stringify(cleanedTocData));
+          if (currentFileType) formDataWithJson.append("file_type", currentFileType);
+
+          const response = await fetch("/api/parse/extract", {
+            method: "POST",
+            body: formDataWithJson,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || `提取内容失败 (状态码: ${response.status})`);
+
+          parsedEntries = payload.entries || [];
+          currentFilename = payload.filename || currentFilename;
+          restructureChapters = parsedEntries;
+          
+          renderTable(parsedEntries);
+          document.getElementById("chapterTable").style.display = "block";
+          
+          // 检查是否需要自动翻译
+          if (translateBookCheckbox && translateBookCheckbox.checked) {
+            renderStatus("status3", `内容提取完成，共 ${parsedEntries.length} 章。开始自动翻译...`, "info");
+            await autoTranslateAll();
+          } else {
+            renderStatus("status3", `内容提取完成，共 ${parsedEntries.length} 章`, "success");
+          }
+          
+          ingestButton.disabled = parsedEntries.length === 0;
+        } catch (error) {
+          renderStatus("status3", error.message, "error");
+          parsedEntries = [];
+        } finally {
+          extractButton.disabled = false;
+        }
+      });
+
+      function renderTable(entries) {
+        if (!entries || entries.length === 0) {
+          resultsBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 40px;">未识别到有效目录。</td></tr>`;
+          ingestButton.disabled = true;
+          return;
+        }
+
+        resultsBody.innerHTML = "";
+        ingestButton.disabled = false;
+        
+        // 检查是否需要显示一键翻译按钮
+        const shouldTranslate = translateBookCheckbox && translateBookCheckbox.checked;
+        const hasUntranslated = entries.some(e => {
+          const hasTranslation = e.title_zh && e.content_zh && e.title_zh !== e.title && e.content_zh !== e.content;
+          return !hasTranslation && e.title;
+        });
+        translateAllButton.style.display = (shouldTranslate && hasUntranslated) ? "inline-block" : "none";
+        
+        for (let index = 0; index < entries.length; index++) {
+          const entry = entries[index];
+          const row = document.createElement("tr");
+          const displayTitle = entry.title_zh || entry.title;
+
+          const titleCell = document.createElement("td");
+          titleCell.textContent = displayTitle;
+          if (entry.title_zh && entry.title_zh !== entry.title) {
+            titleCell.title = `原文: ${entry.title}`;
+            titleCell.style.color = "#2563eb";
+          }
+
+          const contentCell = document.createElement("td");
+          const viewButton = document.createElement("button");
+          viewButton.textContent = "查看内容";
+          viewButton.style.cssText = "font-size: 13px; padding: 6px 12px;";
+          viewButton.addEventListener("click", () => {
+            const displayContent = entry.content_zh || entry.content || "(暂无正文内容)";
+            document.getElementById("dialogTitle").textContent = displayTitle;
+            document.getElementById("dialogContent").textContent = displayContent;
+            contentDialog.showModal();
+          });
+          contentCell.appendChild(viewButton);
+
+          const countCell = document.createElement("td");
+          const count = entry.word_count || 0;
+          countCell.innerHTML = `<span style="font-weight: 500; color: #475569;">${count.toLocaleString()}</span> <span style="color: #94a3b8; font-size: 12px;">字</span>`;
+
+          const translateCell = document.createElement("td");
+          const hasTranslation = entry.title_zh && entry.content_zh && entry.title_zh !== entry.title && entry.content_zh !== entry.content;
+          const shouldTranslate = translateBookCheckbox && translateBookCheckbox.checked;
+          
+          if (hasTranslation) {
+            translateCell.innerHTML = '<span style="color: #10b981; font-size: 12px;">✓ 已翻译</span>';
+          } else if (shouldTranslate && entry.title) {
+            // 开关打开，显示翻译按钮
+            const translateButton = document.createElement("button");
+            translateButton.textContent = "🌐 翻译";
+            translateButton.style.cssText = "font-size: 13px; padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer;";
+            translateButton.addEventListener("click", async () => {
+              translateButton.disabled = true;
+              translateButton.textContent = "翻译中...";
+              renderStatus("status3", `正在翻译章节: ${entry.title}...`, "info");
+              
+              try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 600000);
+                
+                const response = await fetch("/api/translate/chapter", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ title: entry.title, content: entry.content || "" }),
+                  signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.error || `翻译失败 (状态码: ${response.status})`);
+                }
+
+                const payload = await response.json();
+                entry.title_zh = payload.title_zh || entry.title_zh;
+                entry.content_zh = payload.content_zh || entry.content_zh;
+                if (payload.summary) entry.summary = payload.summary;
+                // 重新计算中文字数
+                if (entry.content_zh) {
+                  entry.word_count = entry.content_zh.replace(/\s+/g, "").length;
+                }
+                
+                // 同步更新 restructureChapters
+                restructureChapters = parsedEntries;
+                renderTable(parsedEntries);
+                renderStatus("status3", `章节翻译完成: ${payload.title_zh || entry.title}`, "success");
+              } catch (error) {
+                translateButton.disabled = false;
+                translateButton.textContent = "🌐 翻译";
+                renderStatus("status3", `翻译失败: ${error.message}`, "error");
+              }
+            });
+            translateCell.appendChild(translateButton);
+          } else {
+            translateCell.innerHTML = '<span style="color: #94a3b8;">—</span>';
+          }
+
+          const summaryCell = document.createElement("td");
+          if (entry.summary) {
+            const summaryButton = document.createElement("button");
+            summaryButton.textContent = "查看概述";
+            summaryButton.style.cssText = "font-size: 13px; padding: 6px 12px;";
+            summaryButton.addEventListener("click", () => {
+              document.getElementById("dialogTitle").textContent = `${displayTitle} - 概述`;
+              document.getElementById("dialogContent").textContent = entry.summary || "(暂无概述)";
+              contentDialog.showModal();
+            });
+            summaryCell.appendChild(summaryButton);
+          } else {
+            summaryCell.innerHTML = '<span style="color: #94a3b8;">—</span>';
+          }
+
+          row.appendChild(titleCell);
+          row.appendChild(contentCell);
+          row.appendChild(countCell);
+          row.appendChild(translateCell);
+          row.appendChild(summaryCell);
+          resultsBody.appendChild(row);
+        }
+      }
+
+      document.getElementById("closeDialog").addEventListener("click", () => contentDialog.close());
+
+      // 翻译锁，防止重复执行
+      let isTranslating = false;
+
+      // 自动翻译全部章节的函数（并发版本）
+      async function autoTranslateAll() {
+        // 防止重复执行
+        if (isTranslating) {
+          console.log("翻译正在进行中，忽略重复请求");
+          return { success: false, message: "翻译正在进行中" };
+        }
+        
+        if (!parsedEntries.length) {
+          return { success: false, message: "没有可翻译的章节" };
+        }
+
+        // 找出未翻译的章节
+        const untranslatedIndices = [];
+        for (let i = 0; i < parsedEntries.length; i++) {
+          const entry = parsedEntries[i];
+          const hasTranslation = entry.title_zh && entry.content_zh && 
+                                 entry.title_zh !== entry.title && entry.content_zh !== entry.content;
+          if (!hasTranslation && entry.title) {
+            untranslatedIndices.push(i);
+          }
+        }
+
+        if (untranslatedIndices.length === 0) {
+          renderStatus("status3", "所有章节都已翻译", "success");
+          return { success: true, message: "所有章节都已翻译" };
+        }
+
+        // 设置翻译锁
+        isTranslating = true;
+        
+        translateAllButton.disabled = true;
+        translateAllButton.style.display = "inline-block";
+        const originalText = translateAllButton.textContent;
+        
+        const total = untranslatedIndices.length;
+        let completed = 0;
+        let successCount = 0;
+        let failCount = 0;
+        
+        // 最大并发数（测试表明 10-15 个并发都能正常工作）
+        const MAX_CONCURRENCY = 10;
+        
+        showProgress(progressWrapper, progressFill, progressLabel, total, `开始翻译 (最多${MAX_CONCURRENCY}个并发)...`);
+
+        // 使用工作池模式：始终保持最大并发，一个完成立即补充下一个
+        let currentIndex = 0;  // 下一个要处理的任务索引
+        let activeCount = 0;   // 当前正在运行的任务数
+        const activeChapters = new Set();  // 正在翻译的章节索引
+        
+        // 更新进度显示（包含正在翻译的章节）
+        function updateTranslateProgress() {
+          const activeList = Array.from(activeChapters).map(i => i + 1).sort((a, b) => a - b);
+          const activeText = activeList.length > 0 ? `正在翻译: 第 ${activeList.join(', ')} 章` : '';
+          updateProgress(progressWrapper, progressFill, progressLabel, completed, total, 
+            `已完成 ${completed}/${total} 章（成功 ${successCount}，失败 ${failCount}）${activeText ? '\n' + activeText : ''}`);
+        }
+        
+        // 翻译单个章节的函数
+        async function translateOne(idx) {
+          const entry = parsedEntries[idx];
+          activeChapters.add(idx);
+          updateTranslateProgress();
+          
+          try {
+            const response = await fetch("/api/translate/chapter", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: entry.title, content: entry.content || "" }),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.error || `翻译失败`);
+            }
+
+            const payload = await response.json();
+            entry.title_zh = payload.title_zh || entry.title_zh;
+            entry.content_zh = payload.content_zh || entry.content_zh;
+            if (payload.summary) entry.summary = payload.summary;
+            // 重新计算中文字数
+            if (entry.content_zh) {
+              entry.word_count = entry.content_zh.replace(/\s+/g, "").length;
+            }
+            successCount++;
+          } catch (error) {
+            console.error(`翻译章节 ${idx + 1} 失败:`, error);
+            failCount++;
+          } finally {
+            activeChapters.delete(idx);
+            completed++;
+            translateAllButton.textContent = `翻译中 ${completed}/${total}`;
+            updateTranslateProgress();
+          }
+        }
+
+        // 工作池执行器：始终保持最大并发数
+        await new Promise((resolve) => {
+          function startNext() {
+            // 如果还有任务且未达到最大并发，启动新任务
+            while (currentIndex < untranslatedIndices.length && activeCount < MAX_CONCURRENCY) {
+              const idx = untranslatedIndices[currentIndex];
+              currentIndex++;
+              activeCount++;
+              
+              translateOne(idx).finally(() => {
+                activeCount--;
+                // 任务完成后，尝试启动下一个或检查是否全部完成
+                if (currentIndex < untranslatedIndices.length) {
+                  startNext();
+                } else if (activeCount === 0) {
+                  resolve();
+                }
+              });
+            }
+            // 如果没有更多任务且没有活跃任务，完成
+            if (currentIndex >= untranslatedIndices.length && activeCount === 0) {
+              resolve();
+            }
+          }
+          startNext();
+        });
+
+        // 释放翻译锁
+        isTranslating = false;
+
+        // 更新数据和UI
+        restructureChapters = parsedEntries;
+        renderTable(parsedEntries);
+        hideProgress(progressWrapper, progressFill);
+        translateAllButton.textContent = originalText;
+        translateAllButton.disabled = false;
+
+        if (failCount === 0) {
+          renderStatus("status3", `✅ 批量翻译完成！成功翻译 ${successCount} 章`, "success");
+        } else {
+          renderStatus("status3", `批量翻译完成：成功 ${successCount} 章，失败 ${failCount} 章`, "info");
+        }
+        
+        return { success: true, successCount, failCount };
+      }
+
+      // 一键翻译全部按钮
+      translateAllButton.addEventListener("click", async () => {
+        await autoTranslateAll();
+      });
+
+      // 入库按钮
+      ingestButton.addEventListener("click", async () => {
+        if (!parsedEntries.length) {
+          renderStatus("status3", "请先完成解析", "error");
+          return;
+        }
+
+        ingestButton.disabled = true;
+        renderStatus("status3", "正在生成章节概述并入库，请稍候...", "info");
+
+        const totalChapters = parsedEntries.length;
+        showProgress(progressWrapper, progressFill, progressLabel, totalChapters, "正在准备入库任务...");
+
+        try {
+          const totalWordCount = parsedEntries.reduce((sum, entry) => {
+            const wordCount = Number(entry.word_count);
+            if (!Number.isNaN(wordCount) && wordCount > 0) return sum + wordCount;
+            const content = entry.content || "";
+            return sum + content.replace(/\s+/g, "").length;
+          }, 0);
+
+          const startResp = await fetch("/api/parse/ingest/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: currentFilename,
+              chapter_count: totalChapters,
+              total_word_count: totalWordCount,
+            }),
+          });
+
+          const startRaw = await startResp.text();
+          let startPayload = {};
+          if (startRaw.trim()) {
+            try { startPayload = JSON.parse(startRaw.trim()); } catch (e) { throw new Error(`入库初始化响应格式错误`); }
+          }
+          if (!startResp.ok) throw new Error(startPayload.error || `入库初始化失败`);
+
+          const bookId = startPayload.book_id;
+          if (bookId === undefined || bookId === null) throw new Error("入库初始化失败：未返回 book_id");
+
+          for (let index = 0; index < totalChapters; index++) {
+            const entry = parsedEntries[index];
+            const displayTitle = entry.title_zh || entry.title || `第 ${index + 1} 章`;
+            updateProgress(progressWrapper, progressFill, progressLabel, index, totalChapters, `正在处理第 ${index + 1}/${totalChapters} 章：${displayTitle}`);
+
+            const chapterResp = await fetch("/api/parse/ingest/chapter", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ book_id: bookId, entry, index }),
+            });
+
+            const chapterRaw = await chapterResp.text();
+            let chapterPayload = {};
+            if (chapterRaw.trim()) {
+              try { chapterPayload = JSON.parse(chapterRaw.trim()); } catch (e) { throw new Error(`第 ${index + 1} 章响应格式错误`); }
+            }
+            if (!chapterResp.ok) throw new Error(chapterPayload.error || `章节 ${index + 1} 入库失败`);
+
+            const processedEntry = chapterPayload.entry || entry;
+            parsedEntries[index] = processedEntry;
+            updateProgress(progressWrapper, progressFill, progressLabel, index + 1, totalChapters, `完成第 ${index + 1}/${totalChapters} 章`);
+          }
+
+          restructureChapters = parsedEntries;
+          renderTable(parsedEntries);
+          renderStatus("status3", "章节概述已完成入库", "success");
+          restructureTocButton.disabled = false;
+          goToStep(4);
+        } catch (error) {
+          renderStatus("status3", error.message || "概述入库失败", "error");
+        } finally {
+          hideProgress(progressWrapper, progressFill);
+          if (parsedEntries.length) ingestButton.disabled = false;
+        }
+      });
+
+
+      // ===== 步骤4: 重构目录 =====
+      restructurePrompt.value = DEFAULT_RESTRUCTURE_PROMPT;
+
+      restructureTocButton.addEventListener("click", async () => {
+        if (!restructureChapters || restructureChapters.length === 0) {
+          renderStatus("status4", "请先完成解析入库", "error");
+          return;
+        }
+
+        if (!restructurePrompt.value.trim()) {
+          renderStatus("status4", "请输入重构提示词", "error");
+          return;
+        }
+
+        restructureTocButton.disabled = true;
+        restructureTocButton.textContent = "重构中...";
+        renderStatus("status4", "正在读取书籍目录与摘要...", "info");
+
+        try {
+          const tocSummaryText = generateTocSummaryText(restructureChapters);
+          renderStatus("status4", "正在调用深度思考模型生成新目录...", "info");
+
+          const userPrompt = restructurePrompt.value.trim();
+          const fullPrompt = userPrompt.replace(/{chapters}/g, tocSummaryText);
+
+          const result = await interpretWithDeepThinking(
+            tocSummaryText,
+            fullPrompt,
+            { replacements: { chapters: tocSummaryText } }
+          );
+
+          restructuredTocContent = result.content;
+
+          const thinkingContent = document.getElementById('thinkingContent');
+          const thinkingDetails = document.getElementById('thinkingDetails');
+          
+          if (result.reasoning_content && thinkingContent) {
+            thinkingContent.textContent = result.reasoning_content;
+            thinkingDetails.style.display = 'block';
+          } else {
+            thinkingDetails.style.display = 'none';
+          }
+          
+          const newTocPreview = document.getElementById('newTocPreview');
+          if (result.content) {
+            newTocPreview.textContent = result.content;
+            newTocPreview.style.display = 'block';
+          }
+
+          if (result.content) {
+            parsedParts = parseNewTocStructure(result.content);
+            updatePartSelector();
+          }
+          
+          renderStatus("status4", "目录重构完成！可以选择Part测试，或点击【生成整本新书】", "success");
+          testPartButton.disabled = false;
+          generateNewBookButton.disabled = false;
+          goToStep(5);
+        } catch (error) {
+          renderStatus("status4", `重构失败: ${error.message}`, "error");
+        } finally {
+          restructureTocButton.disabled = false;
+          restructureTocButton.textContent = "🔄 开始重构目录";
+        }
+      });
+
+      function updatePartSelector() {
+        partSelector.innerHTML = '<option value="">选择Part测试...</option>';
+        for (const part of parsedParts) {
+          const coveredCount = part.coveredChapters ? part.coveredChapters.length : 0;
+          partSelector.innerHTML += `<option value="${part.partNumber}">Part ${part.partNumber}: ${part.title.substring(0, 20)}${part.title.length > 20 ? '...' : ''} (${coveredCount}章)</option>`;
+        }
+      }
+
+      // ===== 步骤5: 生成新书 =====
+      testPartButton.addEventListener("click", async () => {
+        const partNumber = parseInt(partSelector.value);
+        if (!partNumber) {
+          renderStatus("status5", "请先选择要测试的Part", "error");
+          return;
+        }
+
+        const part = parsedParts.find(p => p.partNumber === partNumber);
+        if (!part) {
+          renderStatus("status5", "找不到指定的Part", "error");
+          return;
+        }
+
+        const coveredIndices = part.coveredChapters || [];
+        if (coveredIndices.length === 0) {
+          renderStatus("status5", "该Part没有覆盖任何章节", "error");
+          return;
+        }
+
+        let combinedContent = '';
+        console.log(`开始获取章节内容，restructureChapters 长度: ${restructureChapters.length}`);
+        for (const chapterNum of coveredIndices) {
+          const chapterIndex = chapterNum - 1;
+          console.log(`处理章节 ${chapterNum} (索引 ${chapterIndex})`);
+          if (chapterIndex >= 0 && chapterIndex < restructureChapters.length) {
+            const chapter = restructureChapters[chapterIndex];
+            console.log(`章节 ${chapterNum}: title=${chapter.title}, content长度=${(chapter.content || '').length}, content_zh长度=${(chapter.content_zh || '').length}`);
+            const content = chapter.content_zh || chapter.content || '';
+            if (content) combinedContent += (combinedContent ? '\n\n' : '') + content;
+          } else {
+            console.warn(`章节索引 ${chapterIndex} 超出范围 (0-${restructureChapters.length - 1})`);
+          }
+        }
+
+        if (!combinedContent) {
+          console.log("调试信息 - restructureChapters:", restructureChapters);
+          console.log("调试信息 - coveredIndices:", coveredIndices);
+          renderStatus("status5", `无法获取章节内容。请确保已完成步骤3的解析入库，或从数据库加载了书籍。覆盖章节: ${coveredIndices.join(',')}`, "error");
+          return;
+        }
+
+        const maxLength = parseInt(restructureMaxWords.value) || 5000;
+        
+        // 再次检查 combinedContent 是否为空
+        if (!combinedContent || combinedContent.trim().length === 0) {
+          console.error("combinedContent 为空，无法发送请求");
+          renderStatus("status5", "章节内容为空，无法进行分割测试", "error");
+          return;
+        }
+        
+        testPartButton.disabled = true;
+        testPartButton.textContent = "测试中...";
+        renderStatus("status5", `正在测试 Part ${partNumber}: ${part.title}...`, "info");
+
+        try {
+          const response = await fetch('/api/restructure/split-article', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: combinedContent.trim(), max_length: maxLength, title: part.title })
+          });
+
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || '分割失败');
+          }
+
+          const result = await response.json();
+          const segments = result.segments || [];
+
+          if (segments.length === 0) throw new Error('分割结果为空');
+
+          const singlePartResult = document.getElementById('singlePartResult');
+          let html = `<div style="margin-bottom: 12px; padding: 10px; background: #fef3c7; border-radius: 6px;">`;
+          html += `<strong>Part ${partNumber}: ${escapeHtml(part.title)}</strong><br>`;
+          html += `<span style="color: #92400e; font-size: 13px;">覆盖章节: ${coveredIndices.join(', ')} | 分割成 ${segments.length} 段</span>`;
+          html += `</div>`;
+          
+          html += `<div style="display: grid; gap: 8px;">`;
+          for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i];
+            html += `<div style="padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 6px;">`;
+            html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
+            html += `<span style="font-weight: 500;">${i + 1}. ${escapeHtml(seg.title)}</span>`;
+            html += `<span style="color: #6b7280; font-size: 12px;">${(seg.word_count || 0).toLocaleString()}字</span>`;
+            html += `</div></div>`;
+          }
+          html += `</div>`;
+          
+          singlePartResult.innerHTML = html;
+          singlePartResult.style.display = 'block';
+          renderStatus("status5", `Part ${partNumber} 测试完成！共 ${segments.length} 个段落`, "success");
+        } catch (error) {
+          renderStatus("status5", `测试失败: ${error.message}`, "error");
+        } finally {
+          testPartButton.disabled = false;
+          testPartButton.textContent = "🔄 测试该Part";
+        }
+      });
+
+
+      // 生成整本新书
+      generateNewBookButton.addEventListener("click", async () => {
+        if (!restructuredTocContent) {
+          renderStatus("status5", "请先完成目录重构", "error");
+          return;
+        }
+
+        const maxWordCount = parseInt(restructureMaxWords.value) || 5000;
+        if (isNaN(maxWordCount) || maxWordCount <= 0) {
+          renderStatus("status5", "分割字数上限设置无效", "error");
+          return;
+        }
+
+        generateNewBookButton.disabled = true;
+        generateNewBookButton.textContent = "生成中...";
+        showProgress(progressWrapper5, progressFill5, progressLabel5, parsedParts.length, "开始生成新书...");
+        renderStatus("status5", "开始生成新书...", "info");
+
+        try {
+          renderStatus("status5", "正在解析新目录结构...", "info");
+          const newParts = parseNewTocStructure(restructuredTocContent);
+          
+          if (newParts.length === 0) {
+            throw new Error("无法解析新目录结构");
+          }
+
+          // 匹配原书籍章节内容到新目录
+          const matchedContent = [];
+          for (const part of newParts) {
+            let combinedContent = '';
+            const matchedChapters = [];
+            
+            if (part.coveredChapters && part.coveredChapters.length > 0) {
+              for (const chapterNum of part.coveredChapters) {
+                const chapterIndex = chapterNum - 1;
+                if (chapterIndex >= 0 && chapterIndex < restructureChapters.length) {
+                  const chapter = restructureChapters[chapterIndex];
+                  const content = chapter.content_zh || chapter.content || '';
+                  if (content) {
+                    combinedContent += content + '\n\n';
+                    matchedChapters.push(chapter);
+                  }
+                }
+              }
+            }
+            
+            matchedContent.push({
+              partNumber: part.partNumber,
+              title: part.title,
+              summary: part.summary || '',
+              content: combinedContent.trim(),
+              originalChapters: matchedChapters,
+              coveredChapters: part.coveredChapters || []
+            });
+          }
+
+          // 逐章处理 - 合并内容并分割
+          const newBookChapters = [];
+          
+          for (let i = 0; i < matchedContent.length; i++) {
+            const part = matchedContent[i];
+            updateProgress(progressWrapper5, progressFill5, progressLabel5, i, matchedContent.length, `正在处理第 ${i + 1}/${matchedContent.length} 部分：${part.title}`);
+            renderStatus("status5", `正在处理第 ${i + 1}/${matchedContent.length} 部分：${part.title}...`, "info");
+
+            if (!part.content || part.content.trim().length === 0) {
+              newBookChapters.push({
+                partNumber: part.partNumber,
+                title: part.title,
+                summary: part.summary,
+                segments: [{ title: part.title, content: "[该部分暂无内容]", word_count: 0 }]
+              });
+              continue;
+            }
+
+            try {
+              const segments = await splitChapterContent(part.title, part.content, maxWordCount);
+              newBookChapters.push({
+                partNumber: part.partNumber,
+                title: part.title,
+                summary: part.summary,
+                segments: segments
+              });
+            } catch (error) {
+              console.error(`处理第 ${i + 1} 部分失败:`, error);
+              newBookChapters.push({
+                partNumber: part.partNumber,
+                title: part.title,
+                summary: part.summary,
+                segments: [{ title: part.title, content: part.content, word_count: part.content.length, error: error.message }]
+              });
+            }
+          }
+
+          // 保存新书籍结构
+          newBookStructure = {
+            originalFilename: currentFilename,
+            newToc: restructuredTocContent,
+            chapters: newBookChapters,
+            maxWordCount: maxWordCount,
+            generatedAt: new Date().toISOString()
+          };
+
+          // 渲染目录树
+          renderNewBookTocTree(newBookChapters);
+          
+          // 更新摘要信息
+          const totalSegments = newBookChapters.reduce((sum, ch) => sum + ch.segments.length, 0);
+          document.getElementById('newBookSummary').textContent = `共 ${newBookChapters.length} 个部分，${totalSegments} 个段落`;
+          
+          document.getElementById('newBookPreview').style.display = 'block';
+          hideProgress(progressWrapper5, progressFill5);
+          renderStatus("status5", `新书生成完成！共 ${newBookChapters.length} 个部分`, "success");
+          
+          newBookName.value = currentFilename.replace(/\.(pdf|epub)$/i, '') + '_重构版';
+          saveNewBookButton.disabled = false;
+          goToStep(6);
+        } catch (error) {
+          renderStatus("status5", `生成失败: ${error.message}`, "error");
+          hideProgress(progressWrapper5, progressFill5);
+        } finally {
+          generateNewBookButton.disabled = false;
+          generateNewBookButton.textContent = "📖 生成整本新书";
+        }
+      });
+
+      function renderNewBookTocTree(chapters) {
+        const tocTree = document.getElementById('newBookTocTree');
+        if (!tocTree || !chapters) return;
+        
+        let html = '';
+        for (const chapter of chapters) {
+          html += `<div style="margin-bottom: 8px;">`;
+          html += `<div style="padding: 8px 12px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer;" onclick="togglePartExpand(${chapter.partNumber})">`;
+          html += `<span id="partIcon${chapter.partNumber}">▼</span> Part ${chapter.partNumber}：${escapeHtml(chapter.title.substring(0, 15))}${chapter.title.length > 15 ? '...' : ''}`;
+          html += `</div>`;
+          html += `<div id="partSegments${chapter.partNumber}" style="margin-left: 12px; margin-top: 4px;">`;
+          for (let j = 0; j < chapter.segments.length; j++) {
+            const segment = chapter.segments[j];
+            html += `<div class="toc-segment-item" data-part="${chapter.partNumber - 1}" data-seg="${j}" onclick="selectNewBookSegment(${chapter.partNumber - 1}, ${j})" style="padding: 6px 10px; margin: 2px 0; border-radius: 4px; font-size: 12px; color: #475569; cursor: pointer; border-left: 2px solid #e2e8f0;">`;
+            html += `${j + 1}. ${escapeHtml(segment.title.substring(0, 20))}${segment.title.length > 20 ? '...' : ''}`;
+            html += `<span style="color: #94a3b8; font-size: 11px; margin-left: 4px;">(${(segment.word_count || 0).toLocaleString()}字)</span>`;
+            html += `</div>`;
+          }
+          html += `</div></div>`;
+        }
+        tocTree.innerHTML = html;
+      }
+      
+      window.togglePartExpand = function(partNumber) {
+        const segments = document.getElementById(`partSegments${partNumber}`);
+        const icon = document.getElementById(`partIcon${partNumber}`);
+        if (segments && icon) {
+          segments.style.display = segments.style.display === 'none' ? 'block' : 'none';
+          icon.textContent = segments.style.display === 'none' ? '▶' : '▼';
+        }
+      };
+      
+      window.selectNewBookSegment = function(partIndex, segmentIndex) {
+        if (!newBookStructure || !newBookStructure.chapters) return;
+        const chapter = newBookStructure.chapters[partIndex];
+        if (!chapter || !chapter.segments) return;
+        const segment = chapter.segments[segmentIndex];
+        if (!segment) return;
+        
+        document.querySelectorAll('.toc-segment-item').forEach(item => {
+          item.style.background = 'transparent';
+          item.style.borderLeftColor = '#e2e8f0';
+        });
+        const selectedItem = document.querySelector(`.toc-segment-item[data-part="${partIndex}"][data-seg="${segmentIndex}"]`);
+        if (selectedItem) {
+          selectedItem.style.background = '#e0e7ff';
+          selectedItem.style.borderLeftColor = '#6366f1';
+        }
+        
+        const previewTitle = document.getElementById('previewTitle');
+        if (previewTitle) {
+          previewTitle.innerHTML = `📄 Part ${chapter.partNumber} - ${escapeHtml(segment.title)} <span style="color: #94a3b8; font-size: 12px;">(${(segment.word_count || 0).toLocaleString()}字)</span>`;
+        }
+        const contentPreview = document.getElementById('newBookContentPreview');
+        if (contentPreview) {
+          contentPreview.innerHTML = `<div style="white-space: pre-wrap; line-height: 1.8;">${escapeHtml(segment.content)}</div>`;
+          contentPreview.scrollTop = 0;
+        }
+      };
+
+
+      // ===== 步骤6: 新书入库 =====
+      saveNewBookButton.addEventListener("click", async () => {
+        if (!newBookStructure || !newBookStructure.chapters) {
+          renderStatus("status6", "没有可保存的新书数据", "error");
+          return;
+        }
+
+        const bookName = newBookName.value.trim();
+        if (!bookName) {
+          renderStatus("status6", "请输入新书名称", "error");
+          return;
+        }
+
+        saveNewBookButton.disabled = true;
+        saveNewBookButton.textContent = "保存中...";
+        renderStatus("status6", "正在保存新书到数据库...", "info");
+
+        try {
+          const entries = [];
+          for (const part of newBookStructure.chapters) {
+            for (const segment of part.segments) {
+              entries.push({
+                title: segment.title,
+                title_zh: segment.title,
+                content: segment.content,
+                content_zh: segment.content,
+                word_count: segment.word_count || 0,
+                summary: part.summary || ''
+              });
+            }
+          }
+
+          if (entries.length === 0) throw new Error('没有可保存的章节');
+
+          const totalWordCount = entries.reduce((sum, e) => sum + (e.word_count || 0), 0);
+          const newFilename = bookName.endsWith('.pdf') || bookName.endsWith('.epub') ? bookName : `${bookName}.pdf`;
+
+          renderStatus("status6", "正在创建新书记录...", "info");
+
+          const startRes = await fetch('/api/parse/ingest/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: newFilename,
+              chapter_count: entries.length,
+              total_word_count: totalWordCount
+            })
+          });
+
+          if (!startRes.ok) {
+            const err = await startRes.json();
+            throw new Error(err.error || '创建书籍记录失败');
+          }
+
+          const startData = await startRes.json();
+          const bookId = startData.book_id;
+
+          for (let i = 0; i < entries.length; i++) {
+            renderStatus("status6", `正在保存第 ${i + 1}/${entries.length} 章...`, "info");
+            await fetch('/api/parse/ingest/chapter', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ book_id: bookId, entry: entries[i], index: i })
+            });
+          }
+
+          renderStatus("status6", `🎉 新书保存成功！书籍ID: ${bookId}，共 ${entries.length} 章`, "success");
+          alert(`新书保存成功！\n\n书名：${newFilename}\n章节数：${entries.length}\n总字数：${totalWordCount.toLocaleString()}\n\n可在「书籍管理」页面查看`);
+        } catch (error) {
+          renderStatus("status6", `保存失败: ${error.message}`, "error");
+        } finally {
+          saveNewBookButton.disabled = false;
+          saveNewBookButton.textContent = "💾 保存到数据库";
+        }
+      });
+
+      // ===== 初始化 =====
+      document.addEventListener("DOMContentLoaded", () => {
+        goToStep(1);
+        
+        // 高亮当前导航
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(link => {
+          const href = link.getAttribute('href');
+          if (href === currentPath || currentPath.endsWith(href)) {
+            link.classList.add('active');
+          } else {
+            link.classList.remove('active');
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

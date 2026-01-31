@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一站式解读流程 - PDF解读系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f1f5f9;
+            min-height: 100vh;
+        }
+        .top-navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .nav-brand {
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-link:hover { background: rgba(255,255,255,0.2); }
+        .nav-link.active { background: rgba(255,255,255,0.25); font-weight: 500; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 { font-size: 28px; color: #1e293b; margin-bottom: 8px; }
+        .header p { color: #64748b; }
+
+        /* 步骤指示器 */
+        .steps-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+        .step-dot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: white;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #94a3b8;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .step-dot.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        .step-dot.completed {
+            background: #10b981;
+            color: white;
+            border-color: transparent;
+        }
+        .step-dot:hover:not(.active) { border-color: #667eea; }
+        .step-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: currentColor;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .step-dot.active .step-num,
+        .step-dot.completed .step-num { background: rgba(255,255,255,0.3); }
+
+        /* 步骤面板 */
+        .step-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .step-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .step-panel h2 {
+            font-size: 22px;
+            color: #1e293b;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .step-panel .desc {
+            color: #64748b;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        /* 表单元素 */
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input[type="file"], select, textarea, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        textarea { min-height: 120px; resize: vertical; font-family: inherit; }
+
+        /* 按钮 */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102,126,234,0.4); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-secondary:hover { background: #475569; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+        .btn-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+
+        /* 状态提示 */
+        .status {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-top: 16px;
+            font-size: 14px;
+            display: none;
+        }
+        .status.show { display: block; }
+        .status.info { background: #eff6ff; color: #1e40af; border-left: 4px solid #3b82f6; }
+        .status.success { background: #f0fdf4; color: #166534; border-left: 4px solid #22c55e; }
+        .status.error { background: #fef2f2; color: #991b1b; border-left: 4px solid #ef4444; }
+
+        /* 进度条 */
+        .progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+            display: none;
+        }
+        .progress-bar.show { display: block; }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        /* 用户偏好卡片 */
+        .preference-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .pref-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .pref-card:hover { border-color: #667eea; background: #f8fafc; }
+        .pref-card.selected { border-color: #667eea; background: #eff6ff; }
+        .pref-card h4 { color: #1e293b; margin-bottom: 8px; }
+        .pref-card p { font-size: 13px; color: #64748b; line-height: 1.6; }
+
+        /* 密度选择 */
+        .density-options { display: flex; gap: 12px; flex-wrap: wrap; }
+        .density-btn {
+            flex: 1;
+            min-width: 150px;
+            padding: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        .density-btn:hover { border-color: #667eea; }
+        .density-btn.selected { border-color: #667eea; background: #eff6ff; }
+        .density-btn strong { display: block; color: #1e293b; margin-bottom: 4px; }
+        .density-btn span { font-size: 12px; color: #64748b; }
+
+        /* 结果展示 */
+        .result-box {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .result-box h4 { color: #1e293b; margin-bottom: 12px; }
+        .markdown-content { line-height: 1.8; color: #334155; }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 { margin-top: 20px; margin-bottom: 10px; color: #1e293b; }
+        .markdown-content p { margin-bottom: 12px; }
+        .markdown-content ul, .markdown-content ol { padding-left: 24px; margin-bottom: 12px; }
+
+        /* 章节列表 */
+        .chapter-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-top: 12px;
+        }
+        .chapter-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chapter-item:last-child { border-bottom: none; }
+        .chapter-item:hover { background: #f8fafc; }
+        .chapter-title { font-size: 14px; color: #1e293b; }
+        .chapter-words { font-size: 12px; color: #94a3b8; }
+
+        /* 思考过程 */
+        .thinking-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .thinking-box h5 { color: #1e40af; margin-bottom: 8px; }
+        .thinking-box pre { white-space: pre-wrap; font-size: 13px; color: #334155; line-height: 1.6; }
+
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 音频播放器 */
+        .audio-player { margin-top: 20px; }
+        .audio-player audio { width: 100%; }
+    </style>
+</head>
+<body>
+    <nav class="top-navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">📚 PDF解读系统</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 首页</a>
+                <a href="/workflow.html" class="nav-link active">🚀 一站式流程</a>
+                <a href="/aigen_test_page.html" class="nav-link">✨ 个性化解读</a>
+                <a href="/parser_test_page.html" class="nav-link">📄 文档解析</a>
+                <a href="/admin_books.html" class="nav-link">📖 书籍管理</a>
+                <a href="/flow_diagram.html" class="nav-link">📊 流程图</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1>🚀 一站式解读流程</h1>
+            <p>从上传书籍到生成个性化解读，一气呵成</p>
+        </div>
+
+        <!-- 步骤指示器 -->
+        <div class="steps-indicator">
+            <div class="step-dot active" data-step="1">
+                <span class="step-num">1</span>
+                <span>上传文档</span>
+            </div>
+            <div class="step-dot" data-step="2">
+                <span class="step-num">2</span>
+                <span>解析目录</span>
+            </div>
+            <div class="step-dot" data-step="3">
+                <span class="step-num">3</span>
+                <span>提取内容</span>
+            </div>
+            <div class="step-dot" data-step="4">
+                <span class="step-num">4</span>
+                <span>入库保存</span>
+            </div>
+            <div class="step-dot" data-step="5">
+                <span class="step-num">5</span>
+                <span>选择章节</span>
+            </div>
+            <div class="step-dot" data-step="6">
+                <span class="step-num">6</span>
+                <span>配置偏好</span>
+            </div>
+            <div class="step-dot" data-step="7">
+                <span class="step-num">7</span>
+                <span>生成解读</span>
+            </div>
+        </div>
+
+        <!-- 步骤1: 上传文档 -->
+        <div class="step-panel active" id="step1">
+            <h2>📄 步骤1：上传文档</h2>
+            <p class="desc">选择要解读的 PDF 或 EPUB 文件</p>
+            
+            <div class="form-group">
+                <label>选择文件</label>
+                <input type="file" id="fileInput" accept=".pdf,.epub,application/pdf,application/epub+zip">
+            </div>
+            
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="translateCheck" style="width: auto;">
+                    <span>翻译为中文（英文书籍建议勾选）</span>
+                </label>
+            </div>
+
+            <div class="status" id="status1"></div>
+            
+            <div class="btn-group">
+                <button class="btn btn-primary" id="nextBtn1" disabled>
+                    下一步：解析目录 →
+                </button>
+            </div>
+        </div>
+
+        <!-- 步骤2: 解析目录 -->
+        <div class="step-panel" id="step2">
+            <h2>🔍 步骤2：解析目录</h2>
+            <p class="desc">使用 AI 智能识别并清洗文档目录结构</p>
+            
+            <div class="form-group">
+                <label>当前文件</label>
+                <input type="text" id="currentFileName" readonly>
+            </div>
+
+            <div class="status" id="status2"></div>
+            <div class="progress-bar" id="progress2">
+                <div class="progress-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="result-box" id="tocResult" style="display: none;">
+                <h4>📑 识别到的章节目录</h4>
+                <div class="chapter-list" id="tocList"></div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="goToStep(1)">← 上一步</button>
+                <button class="btn btn-primary" id="parseTocBtn">
+                    🔍 开始解析目录
+                </button>
+                <button class="btn btn-success" id="nextBtn2" disabled>
+                    下一步：提取内容 →
+                </button>
+            </div>
+        </div>
+
+        <!-- 步骤3: 提取内容 -->
+        <div class="step-panel" id="step3">
+            <h2>📑 步骤3：提取内容</h2>
+            <p class="desc">根据目录结构提取各章节的完整内容</p>
+            
+            <div class="status" id="status3"></div>
+            <div class="progress-bar" id="progress3">
+                <div class="progress-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="result-box" id="contentResult" style="display: none;">
+                <h4>📊 提取结果统计</h4>
+                <div id="contentStats"></div>
+                <div class="chapter-list" id="contentList"></div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="goToStep(2)">← 上一步</button>
+                <button class="btn btn-primary" id="extractBtn">
+                    📑 开始提取内容
+                </button>
+                <button class="btn btn-success" id="nextBtn3" disabled>
+                    下一步：入库保存 →
+                </button>
+            </div>
+        </div>
+
+        <!-- 步骤4: 入库保存 -->
+        <div class="step-panel" id="step4">
+            <h2>💾 步骤4：入库保存</h2>
+            <p class="desc">将解析结果保存到数据库，方便后续使用</p>
+            
+            <div class="status" id="status4"></div>
+            <div class="progress-bar" id="progress4">
+                <div class="progress-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="result-box" id="ingestResult" style="display: none;">
+                <h4>✅ 入库完成</h4>
+                <p id="ingestInfo"></p>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="goToStep(3)">← 上一步</button>
+                <button class="btn btn-primary" id="ingestBtn">
+                    💾 保存到数据库
+                </button>
+                <button class="btn btn-success" id="nextBtn4" disabled>
+                    下一步：选择章节 →
+                </button>
+            </div>
+        </div>
+
+        <!-- 步骤5: 选择章节 -->
+        <div class="step-panel" id="step5">
+            <h2>📚 步骤5：选择章节</h2>
+            <p class="desc">选择要生成解读的章节（可从已入库的书籍中选择）</p>
+            
+            <div class="form-group">
+                <label>选择书籍</label>
+                <select id="bookSelect">
+                    <option value="">请选择书籍...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>选择章节</label>
+                <select id="chapterSelect" disabled>
+                    <option value="">请先选择书籍</option>
+                </select>
+            </div>
+
+            <div class="result-box" id="chapterPreview" style="display: none;">
+                <h4>📖 章节预览</h4>
+                <p><strong>标题：</strong><span id="previewTitle"></span></p>
+                <p><strong>字数：</strong><span id="previewWords"></span></p>
+                <p><strong>摘要：</strong><span id="previewSummary"></span></p>
+            </div>
+
+            <div class="status" id="status5"></div>
+            
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="goToStep(4)">← 上一步</button>
+                <button class="btn btn-success" id="nextBtn5" disabled>
+                    下一步：配置偏好 →
+                </button>
+            </div>
+        </div>
+
+        <!-- 步骤6: 配置偏好 -->
+        <div class="step-panel" id="step6">
+            <h2>👤 步骤6：配置偏好</h2>
+            <p class="desc">选择用户画像和解读密度，定制个性化解读风格</p>
+            
+            <div class="form-group">
+                <label>选择用户画像</label>
+                <div class="preference-grid">
+                    <div class="pref-card" data-pref="A">
+                        <h4>🏢 A. 创业CEO</h4>
+                        <p>碎片化阅读，关注决策杠杆和商业洞察，追求快速抓住核心要点</p>
+                    </div>
+                    <div class="pref-card" data-pref="B">
+                        <h4>💡 B. 产品经理</h4>
+                        <p>深度阅读，关注用户心理和产品逻辑，追求系统性思维提升</p>
+                    </div>
+                    <div class="pref-card" data-pref="C">
+                        <h4>📚 C. 知识工作者</h4>
+                        <p>沉浸式阅读，关注知识体系和跨领域思考，追求认知深度</p>
+                    </div>
+                    <div class="pref-card" data-pref="D">
+                        <h4>⚡ D. 职场人士</h4>
+                        <p>快速阅读，关注核心观点和行动清单，追求即学即用</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>选择解读密度</label>
+                <div class="density-options">
+                    <button class="density-btn" data-density="20% 主干">
+                        <strong>20% 主干</strong>
+                        <span>只保留核心结论，3-4个要点</span>
+                    </button>
+                    <button class="density-btn selected" data-density="50% 核心">
+                        <strong>50% 核心</strong>
+                        <span>补充关键例证，5-7个要点</span>
+                    </button>
+                    <button class="density-btn" data-density="70% 深度">
+                        <strong>70% 深度</strong>
+                        <span>覆盖重要分支，8-12个要点</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="status" id="status6"></div>
+            
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="goToStep(5)">← 上一步</button>
+                <button class="btn btn-success" id="nextBtn6" disabled>
+                    下一步：生成解读 →
+                </button>
+            </div>
+        </div>
+
+        <!-- 步骤7: 生成解读 -->
+        <div class="step-panel" id="step7">
+            <h2>🧠 步骤7：生成解读</h2>
+            <p class="desc">使用豆包深度思考模型生成个性化解读内容</p>
+            
+            <div class="result-box" id="configSummary">
+                <h4>📋 配置摘要</h4>
+                <p><strong>书籍：</strong><span id="summaryBook"></span></p>
+                <p><strong>章节：</strong><span id="summaryChapter"></span></p>
+                <p><strong>用户画像：</strong><span id="summaryPref"></span></p>
+                <p><strong>解读密度：</strong><span id="summaryDensity"></span></p>
+            </div>
+
+            <div class="status" id="status7"></div>
+            <div class="progress-bar" id="progress7">
+                <div class="progress-fill" style="width: 0%"></div>
+            </div>
+
+            <div class="thinking-box" id="thinkingBox" style="display: none;">
+                <h5>🧠 AI 思考过程</h5>
+                <pre id="thinkingContent"></pre>
+            </div>
+
+            <div class="result-box" id="interpretationResult" style="display: none;">
+                <h4>📖 解读结果</h4>
+                <div class="markdown-content" id="interpretationContent"></div>
+            </div>
+
+            <div class="audio-player" id="audioPlayer" style="display: none;">
+                <h4>🎙️ 播客音频</h4>
+                <audio id="podcastAudio" controls></audio>
+                <button class="btn btn-secondary" id="downloadAudioBtn" style="margin-top: 12px;">下载音频</button>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="goToStep(6)">← 上一步</button>
+                <button class="btn btn-primary" id="generateBtn">
+                    🧠 开始生成解读
+                </button>
+                <button class="btn btn-success" id="podcastBtn" style="display: none;">
+                    🎙️ 生成播客
+                </button>
+                <button class="btn btn-primary" onclick="goToStep(1)">
+                    🔄 重新开始
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 全局状态 ==========
+        let currentStep = 1;
+        let uploadedFile = null;
+        let cleanedToc = [];
+        let extractedEntries = [];
+        let currentBookId = null;
+        let selectedBook = null;
+        let selectedChapter = null;
+        let selectedPreference = null;
+        let selectedDensity = "50% 核心";
+        let chapters = [];
+
+        // 用户偏好配置
+        const preferenceConfigs = {
+            A: {
+                name: "创业CEO",
+                userProfession: "创业公司CEO",
+                readingGoal: "提升战略决策能力、团队管理和商业洞察力",
+                focus: "商业洞察、组织杠杆和落地抓手",
+                preferredTitle: "李总",
+                summary: "需要在有限时间内快速抓住商业杠杆点的创业掌舵人"
+            },
+            B: {
+                name: "产品经理",
+                userProfession: "产品经理",
+                readingGoal: "深入理解用户心理、产品设计原理和商业逻辑",
+                focus: "模型推理、框架拆解和对比案例",
+                preferredTitle: "小王",
+                summary: "追求深度理解用户心理和产品逻辑的产品经理"
+            },
+            C: {
+                name: "知识工作者",
+                userProfession: "知识工作者",
+                readingGoal: "系统化构建知识体系，探索跨领域思维",
+                focus: "概念映射、结构化总结与延展思考",
+                preferredTitle: "老师",
+                summary: "系统化构建知识体系、追求深度理解的知识工作者"
+            },
+            D: {
+                name: "职场人士",
+                userProfession: "忙碌的职场人士",
+                readingGoal: "快速获取核心观点和关键洞察",
+                focus: "浓缩结论、行动清单和实践捷径",
+                preferredTitle: "小陈",
+                summary: "时间有限、追求快速获取可落地核心观点的职场实干派"
+            }
+        };
+
+        // ========== 工具函数 ==========
+        function showStatus(stepNum, message, type = 'info') {
+            const el = document.getElementById(`status${stepNum}`);
+            if (el) {
+                el.textContent = message;
+                el.className = `status show ${type}`;
+            }
+        }
+
+        function hideStatus(stepNum) {
+            const el = document.getElementById(`status${stepNum}`);
+            if (el) el.className = 'status';
+        }
+
+        function showProgress(stepNum, percent) {
+            const bar = document.getElementById(`progress${stepNum}`);
+            if (bar) {
+                bar.className = 'progress-bar show';
+                bar.querySelector('.progress-fill').style.width = `${percent}%`;
+            }
+        }
+
+        function hideProgress(stepNum) {
+            const bar = document.getElementById(`progress${stepNum}`);
+            if (bar) bar.className = 'progress-bar';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ========== 步骤导航 ==========
+        function goToStep(step) {
+            // 更新步骤指示器
+            document.querySelectorAll('.step-dot').forEach((dot, idx) => {
+                dot.classList.remove('active');
+                if (idx + 1 < step) dot.classList.add('completed');
+                else dot.classList.remove('completed');
+                if (idx + 1 === step) dot.classList.add('active');
+            });
+
+            // 切换面板
+            document.querySelectorAll('.step-panel').forEach(panel => panel.classList.remove('active'));
+            document.getElementById(`step${step}`).classList.add('active');
+            currentStep = step;
+
+            // 特殊处理
+            if (step === 5) loadBooks();
+            if (step === 7) updateConfigSummary();
+        }
+
+        // 点击步骤指示器跳转
+        document.querySelectorAll('.step-dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                const step = parseInt(dot.dataset.step);
+                if (dot.classList.contains('completed') || dot.classList.contains('active')) {
+                    goToStep(step);
+                }
+            });
+        });
+
+        // ========== 步骤1: 上传文档 ==========
+        const fileInput = document.getElementById('fileInput');
+        const nextBtn1 = document.getElementById('nextBtn1');
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                uploadedFile = fileInput.files[0];
+                showStatus(1, `已选择文件: ${uploadedFile.name}`, 'success');
+                nextBtn1.disabled = false;
+            } else {
+                uploadedFile = null;
+                nextBtn1.disabled = true;
+            }
+        });
+
+        nextBtn1.addEventListener('click', () => {
+            document.getElementById('currentFileName').value = uploadedFile.name;
+            goToStep(2);
+        });
+
+        // ========== 步骤2: 解析目录 ==========
+        const parseTocBtn = document.getElementById('parseTocBtn');
+        const nextBtn2 = document.getElementById('nextBtn2');
+
+        parseTocBtn.addEventListener('click', async () => {
+            if (!uploadedFile) {
+                showStatus(2, '请先上传文件', 'error');
+                return;
+            }
+
+            parseTocBtn.disabled = true;
+            parseTocBtn.innerHTML = '<span class="loading"></span> 解析中...';
+            showStatus(2, '正在解析目录，请稍候...', 'info');
+            showProgress(2, 30);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', uploadedFile);
+
+                const response = await fetch('/api/parse/clean_toc', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                showProgress(2, 70);
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '解析失败');
+                }
+
+                const data = await response.json();
+                cleanedToc = data.cleaned_toc || [];
+
+                showProgress(2, 100);
+
+                // 显示结果
+                const tocList = document.getElementById('tocList');
+                tocList.innerHTML = cleanedToc.map((item, idx) => `
+                    <div class="chapter-item">
+                        <span class="chapter-title">${idx + 1}. ${escapeHtml(item.title)}</span>
+                        <span class="chapter-words">页码: ${item.page || '-'}</span>
+                    </div>
+                `).join('');
+
+                document.getElementById('tocResult').style.display = 'block';
+                showStatus(2, `成功识别 ${cleanedToc.length} 个章节`, 'success');
+                nextBtn2.disabled = false;
+
+            } catch (error) {
+                showStatus(2, `解析失败: ${error.message}`, 'error');
+            } finally {
+                parseTocBtn.disabled = false;
+                parseTocBtn.innerHTML = '🔍 开始解析目录';
+                hideProgress(2);
+            }
+        });
+
+        nextBtn2.addEventListener('click', () => goToStep(3));
+
+        // ========== 步骤3: 提取内容 ==========
+        const extractBtn = document.getElementById('extractBtn');
+        const nextBtn3 = document.getElementById('nextBtn3');
+
+        extractBtn.addEventListener('click', async () => {
+            if (!uploadedFile || cleanedToc.length === 0) {
+                showStatus(3, '请先完成目录解析', 'error');
+                return;
+            }
+
+            extractBtn.disabled = true;
+            extractBtn.innerHTML = '<span class="loading"></span> 提取中...';
+            showStatus(3, '正在提取章节内容，请稍候...', 'info');
+            showProgress(3, 20);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', uploadedFile);
+                formData.append('cleaned_toc', JSON.stringify(cleanedToc));
+                if (document.getElementById('translateCheck').checked) {
+                    formData.append('translate', 'true');
+                }
+
+                const response = await fetch('/api/parse/extract', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                showProgress(3, 80);
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '提取失败');
+                }
+
+                const data = await response.json();
+                extractedEntries = data.entries || [];
+
+                showProgress(3, 100);
+
+                // 统计
+                const totalWords = extractedEntries.reduce((sum, e) => sum + (e.word_count || 0), 0);
+                document.getElementById('contentStats').innerHTML = `
+                    <p>共提取 <strong>${extractedEntries.length}</strong> 个章节，总计 <strong>${totalWords.toLocaleString()}</strong> 字</p>
+                `;
+
+                // 列表
+                const contentList = document.getElementById('contentList');
+                contentList.innerHTML = extractedEntries.map((item, idx) => `
+                    <div class="chapter-item">
+                        <span class="chapter-title">${idx + 1}. ${escapeHtml(item.title_zh || item.title)}</span>
+                        <span class="chapter-words">${(item.word_count || 0).toLocaleString()} 字</span>
+                    </div>
+                `).join('');
+
+                document.getElementById('contentResult').style.display = 'block';
+                showStatus(3, '内容提取完成', 'success');
+                nextBtn3.disabled = false;
+
+            } catch (error) {
+                showStatus(3, `提取失败: ${error.message}`, 'error');
+            } finally {
+                extractBtn.disabled = false;
+                extractBtn.innerHTML = '📑 开始提取内容';
+                hideProgress(3);
+            }
+        });
+
+        nextBtn3.addEventListener('click', () => goToStep(4));
+
+        // ========== 步骤4: 入库保存 ==========
+        const ingestBtn = document.getElementById('ingestBtn');
+        const nextBtn4 = document.getElementById('nextBtn4');
+
+        ingestBtn.addEventListener('click', async () => {
+            if (extractedEntries.length === 0) {
+                showStatus(4, '请先完成内容提取', 'error');
+                return;
+            }
+
+            ingestBtn.disabled = true;
+            ingestBtn.innerHTML = '<span class="loading"></span> 保存中...';
+            showStatus(4, '正在保存到数据库...', 'info');
+            showProgress(4, 10);
+
+            try {
+                // 1. 创建书籍记录
+                const startRes = await fetch('/api/parse/ingest/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: uploadedFile.name })
+                });
+
+                if (!startRes.ok) throw new Error('创建书籍记录失败');
+                const startData = await startRes.json();
+                currentBookId = startData.book_id;
+
+                // 2. 逐章入库
+                for (let i = 0; i < extractedEntries.length; i++) {
+                    const entry = extractedEntries[i];
+                    const progress = 10 + (i / extractedEntries.length) * 85;
+                    showProgress(4, progress);
+                    showStatus(4, `正在保存第 ${i + 1}/${extractedEntries.length} 章...`, 'info');
+
+                    await fetch('/api/parse/ingest/chapter', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            book_id: currentBookId,
+                            chapter_index: i,
+                            title: entry.title,
+                            title_zh: entry.title_zh || entry.title,
+                            content: entry.content,
+                            content_zh: entry.content_zh || entry.content,
+                            summary: entry.summary || '',
+                            word_count: entry.word_count || 0
+                        })
+                    });
+                }
+
+                showProgress(4, 100);
+                document.getElementById('ingestInfo').textContent = 
+                    `书籍 "${uploadedFile.name}" 已成功入库，共 ${extractedEntries.length} 章`;
+                document.getElementById('ingestResult').style.display = 'block';
+                showStatus(4, '入库完成！', 'success');
+                nextBtn4.disabled = false;
+
+            } catch (error) {
+                showStatus(4, `入库失败: ${error.message}`, 'error');
+            } finally {
+                ingestBtn.disabled = false;
+                ingestBtn.innerHTML = '💾 保存到数据库';
+                hideProgress(4);
+            }
+        });
+
+        nextBtn4.addEventListener('click', () => goToStep(5));
+
+        // ========== 步骤5: 选择章节 ==========
+        const bookSelect = document.getElementById('bookSelect');
+        const chapterSelect = document.getElementById('chapterSelect');
+        const nextBtn5 = document.getElementById('nextBtn5');
+
+        async function loadBooks() {
+            try {
+                const response = await fetch('/api/admin/books?page=1&per_page=100');
+                const data = await response.json();
+                
+                bookSelect.innerHTML = '<option value="">请选择书籍...</option>';
+                (data.books || []).forEach(book => {
+                    const option = document.createElement('option');
+                    option.value = book.id;
+                    option.textContent = `${book.filename} (${book.chapter_count}章)`;
+                    // 如果是刚入库的书籍，自动选中
+                    if (book.id === currentBookId) option.selected = true;
+                    bookSelect.appendChild(option);
+                });
+
+                // 如果有刚入库的书籍，自动加载章节
+                if (currentBookId) {
+                    loadChapters(currentBookId);
+                }
+            } catch (error) {
+                showStatus(5, `加载书籍失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadChapters(bookId) {
+            chapterSelect.disabled = true;
+            chapterSelect.innerHTML = '<option value="">加载中...</option>';
+
+            try {
+                const response = await fetch(`/api/admin/books/${bookId}`);
+                const data = await response.json();
+
+                selectedBook = data.book;
+                chapters = data.chapters || [];
+
+                chapterSelect.innerHTML = '<option value="">请选择章节...</option>';
+                chapters.forEach((ch, idx) => {
+                    const option = document.createElement('option');
+                    option.value = ch.id;
+                    option.textContent = `${idx + 1}. ${ch.title_zh || ch.title}`;
+                    chapterSelect.appendChild(option);
+                });
+
+                chapterSelect.disabled = false;
+            } catch (error) {
+                chapterSelect.innerHTML = '<option value="">加载失败</option>';
+                showStatus(5, `加载章节失败: ${error.message}`, 'error');
+            }
+        }
+
+        bookSelect.addEventListener('change', () => {
+            const bookId = bookSelect.value;
+            if (bookId) {
+                loadChapters(parseInt(bookId));
+            } else {
+                chapterSelect.innerHTML = '<option value="">请先选择书籍</option>';
+                chapterSelect.disabled = true;
+                selectedBook = null;
+                selectedChapter = null;
+                nextBtn5.disabled = true;
+            }
+        });
+
+        chapterSelect.addEventListener('change', () => {
+            const chapterId = chapterSelect.value;
+            if (chapterId) {
+                selectedChapter = chapters.find(ch => ch.id === parseInt(chapterId));
+                if (selectedChapter) {
+                    document.getElementById('previewTitle').textContent = selectedChapter.title_zh || selectedChapter.title;
+                    document.getElementById('previewWords').textContent = `${(selectedChapter.word_count || 0).toLocaleString()} 字`;
+                    document.getElementById('previewSummary').textContent = selectedChapter.summary || '暂无摘要';
+                    document.getElementById('chapterPreview').style.display = 'block';
+                    nextBtn5.disabled = false;
+                }
+            } else {
+                selectedChapter = null;
+                document.getElementById('chapterPreview').style.display = 'none';
+                nextBtn5.disabled = true;
+            }
+        });
+
+        nextBtn5.addEventListener('click', () => goToStep(6));
+
+        // ========== 步骤6: 配置偏好 ==========
+        const nextBtn6 = document.getElementById('nextBtn6');
+
+        // 用户偏好选择
+        document.querySelectorAll('.pref-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.pref-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedPreference = card.dataset.pref;
+                updateNextBtn6();
+            });
+        });
+
+        // 密度选择
+        document.querySelectorAll('.density-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.density-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedDensity = btn.dataset.density;
+            });
+        });
+
+        function updateNextBtn6() {
+            nextBtn6.disabled = !selectedPreference;
+        }
+
+        nextBtn6.addEventListener('click', () => goToStep(7));
+
+        // ========== 步骤7: 生成解读 ==========
+        const generateBtn = document.getElementById('generateBtn');
+        const podcastBtn = document.getElementById('podcastBtn');
+
+        function updateConfigSummary() {
+            document.getElementById('summaryBook').textContent = selectedBook?.filename || '-';
+            document.getElementById('summaryChapter').textContent = selectedChapter?.title_zh || selectedChapter?.title || '-';
+            document.getElementById('summaryPref').textContent = preferenceConfigs[selectedPreference]?.name || '-';
+            document.getElementById('summaryDensity').textContent = selectedDensity;
+        }
+
+        generateBtn.addEventListener('click', async () => {
+            if (!selectedChapter || !selectedPreference) {
+                showStatus(7, '请完成所有配置', 'error');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="loading"></span> 生成中...';
+            showStatus(7, '正在调用 AI 生成解读，请耐心等待（约1-3分钟）...', 'info');
+            showProgress(7, 20);
+
+            const prefConfig = preferenceConfigs[selectedPreference];
+
+            try {
+                const payload = {
+                    chapterTitle: selectedChapter.title_zh || selectedChapter.title,
+                    chapterText: selectedChapter.content_zh || selectedChapter.content,
+                    chapterSummary: selectedChapter.summary || selectedChapter.title_zh || selectedChapter.title,
+                    userProfession: prefConfig.userProfession,
+                    readingGoal: prefConfig.readingGoal,
+                    focus: prefConfig.focus,
+                    density: selectedDensity,
+                    userPreferredTitle: prefConfig.preferredTitle,
+                    userSummary: prefConfig.summary
+                };
+
+                showProgress(7, 40);
+
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: AbortSignal.timeout(600000) // 10分钟超时
+                });
+
+                showProgress(7, 80);
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '生成失败');
+                }
+
+                const data = await response.json();
+                const result = data.result;
+
+                showProgress(7, 100);
+
+                // 显示思考过程
+                if (result._thinking_process) {
+                    document.getElementById('thinkingContent').textContent = result._thinking_process;
+                    document.getElementById('thinkingBox').style.display = 'block';
+                }
+
+                // 渲染解读结果
+                let markdown = '';
+                if (result.personalized_intro) {
+                    markdown += `## 📖 个性化导读\n\n${result.personalized_intro}\n\n`;
+                }
+                if (result.interpretation) {
+                    markdown += `## 📝 正式解读\n\n${result.interpretation}\n\n`;
+                }
+                if (result.summary_and_application) {
+                    markdown += `## 💡 总结与应用\n\n${result.summary_and_application}\n\n`;
+                }
+                if (result.powerful_questions) {
+                    markdown += `## 🤔 思考问题\n\n`;
+                    if (Array.isArray(result.powerful_questions)) {
+                        result.powerful_questions.forEach(q => markdown += `- ${q}\n`);
+                    } else {
+                        markdown += result.powerful_questions;
+                    }
+                    markdown += '\n\n';
+                }
+                if (result.quiz && Array.isArray(result.quiz)) {
+                    markdown += `## ❓ 章节测验\n\n`;
+                    result.quiz.forEach((item, idx) => {
+                        markdown += `### 题目 ${idx + 1}\n\n**${item.question}**\n\n`;
+                        if (item.options) {
+                            item.options.forEach((opt, i) => markdown += `${String.fromCharCode(65 + i)}. ${opt}\n`);
+                        }
+                        markdown += `\n**答案：** ${item.answer}\n\n`;
+                        if (item.explanation) markdown += `**解析：** ${item.explanation}\n\n`;
+                    });
+                }
+
+                document.getElementById('interpretationContent').innerHTML = marked.parse(markdown);
+                document.getElementById('interpretationResult').style.display = 'block';
+
+                showStatus(7, '解读生成完成！', 'success');
+                podcastBtn.style.display = 'inline-flex';
+
+                // 保存结果用于播客生成
+                window.currentInterpretation = result;
+
+            } catch (error) {
+                let msg = error.message;
+                if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+                    msg = '请求超时，请稍后重试';
+                }
+                showStatus(7, `生成失败: ${msg}`, 'error');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '🧠 开始生成解读';
+                hideProgress(7);
+            }
+        });
+
+        // 生成播客
+        podcastBtn.addEventListener('click', async () => {
+            if (!window.currentInterpretation) {
+                showStatus(7, '请先生成解读', 'error');
+                return;
+            }
+
+            podcastBtn.disabled = true;
+            podcastBtn.innerHTML = '<span class="loading"></span> 生成播客...';
+            showStatus(7, '正在生成播客音频...', 'info');
+
+            try {
+                // 组合解读内容
+                const result = window.currentInterpretation;
+                let text = '';
+                if (result.personalized_intro) text += result.personalized_intro + '\n\n';
+                if (result.interpretation) text += result.interpretation + '\n\n';
+                if (result.summary_and_application) text += result.summary_and_application;
+
+                const response = await fetch('/api/podcast/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text.substring(0, 5000), // 限制长度
+                        voice_type: 'BV700_streaming'
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '播客生成失败');
+                }
+
+                const data = await response.json();
+                if (data.audio_base64) {
+                    const audio = document.getElementById('podcastAudio');
+                    audio.src = `data:audio/mp3;base64,${data.audio_base64}`;
+                    document.getElementById('audioPlayer').style.display = 'block';
+                    showStatus(7, '播客生成完成！', 'success');
+                }
+
+            } catch (error) {
+                showStatus(7, `播客生成失败: ${error.message}`, 'error');
+            } finally {
+                podcastBtn.disabled = false;
+                podcastBtn.innerHTML = '🎙️ 生成播客';
+            }
+        });
+
+        // 下载音频
+        document.getElementById('downloadAudioBtn').addEventListener('click', () => {
+            const audio = document.getElementById('podcastAudio');
+            if (audio.src) {
+                const a = document.createElement('a');
+                a.href = audio.src;
+                a.download = `podcast_${Date.now()}.mp3`;
+                a.click();
+            }
+        });
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 默认选中50%密度
+            document.querySelector('[data-density="50% 核心"]').classList.add('selected');
+        });
+    </script>
+</body>
+</html>
