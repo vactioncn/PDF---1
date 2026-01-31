@@ -461,7 +461,13 @@ def create_app() -> Flask:
         if not title:
             raise RuntimeError("章节标题为空，无法入库")
         if not content or not content.strip():
-            raise RuntimeError(f"章节《{title}》内容为空，无法入库")
+            # 跳过空内容章节（如分隔页、标题页），返回标记为跳过
+            print(f"跳过空内容章节：《{title}》", flush=True)
+            return {
+                **entry,
+                "skipped": True,
+                "skip_reason": "内容为空",
+            }
 
         title_zh = (entry.get("title_zh") or "").strip()
         content_zh = entry.get("content_zh") or ""
@@ -1916,6 +1922,11 @@ def create_app() -> Flask:
     def serve_book_restructure_page():
         return send_from_directory(app.static_folder, "book_restructure_page.html")
 
+    @app.route("/article_interpretation.html")
+    def serve_article_interpretation_page():
+        """解读文章生成页面"""
+        return send_from_directory(app.static_folder, "article_interpretation.html")
+
     @app.route("/admin.html")
     def serve_admin_page():
         return send_from_directory(app.static_folder, "admin.html")
@@ -1923,6 +1934,26 @@ def create_app() -> Flask:
     @app.route("/admin_books.html")
     def serve_admin_books_page():
         return send_from_directory(app.static_folder, "admin_books.html")
+
+    @app.route("/flow_diagram.html")
+    def serve_flow_diagram_page():
+        """业务流程图页面"""
+        return send_from_directory(app.static_folder, "flow_diagram.html")
+
+    @app.route("/workflow.html")
+    def serve_workflow_page():
+        """一站式解读流程页面"""
+        return send_from_directory(app.static_folder, "workflow.html")
+
+    @app.route("/book_workflow.html")
+    def serve_book_workflow_page():
+        """书籍处理工作流页面"""
+        return send_from_directory(".", "book_workflow.html")
+
+    @app.route("/book_workflow_v2.html")
+    def serve_book_workflow_v2_page():
+        """一站式书籍处理工作流页面（完整版）"""
+        return send_from_directory(".", "book_workflow_v2.html")
 
     @app.route("/")
     @app.route("/index.html")
@@ -6020,7 +6051,7 @@ D. ……
         return intersection / union  # Jaccard相似度
 
     def semantic_segmentation(text: str, similarity_threshold: float = 0.3) -> List[str]:
-        """使用TextTiling风格的语义分割，将文本分割成语义片段"""
+        """使用TextTiling风格的语义分割，将文本分割成语义片段（备用方法）"""
         sentences = split_into_sentences(text)
         if len(sentences) <= 1:
             return [text] if text else []
@@ -6090,82 +6121,430 @@ D. ……
         
         return segments if segments else [text]
 
-    def pack_segments_by_word_count(segments: List[str], max_word_count: int) -> List[str]:
-        """在语义片段基础上，按字数限制重新打包"""
+    def clean_text_line_breaks(text: str) -> str:
+        """
+        清理文本中不合理的换行
+        
+        规则：
+        1. 保留段落之间的双换行（\n\n）
+        2. 如果单换行前面不是句末标点（。！？；…」』"），则合并到同一行
+        3. 保留句末标点后的换行
+        """
+        if not text:
+            return text
+        
+        # 统一换行符
+        text = text.replace('\r\n', '\n').replace('\r', '\n')
+        
+        # 先把双换行替换成占位符
+        placeholder = '\x00PARA\x00'
+        text = re.sub(r'\n\s*\n', placeholder, text)
+        
+        # 处理单换行：如果前面不是句末标点，就合并
+        # 句末标点：。！？；…」』"）
+        sentence_endings = r'[。！？；…」』"）\.\!\?]'
+        
+        # 如果换行前不是句末标点，则删除换行
+        text = re.sub(rf'(?<!{sentence_endings[1:-1]})\n', '', text)
+        
+        # 恢复段落换行
+        text = text.replace(placeholder, '\n\n')
+        
+        return text
+
+    def llm_semantic_segmentation(
+        text: str, 
+        target_word_count: int = 5000,
+        api_key: Optional[str] = None,
+        tolerance: float = 0.1
+    ) -> List[str]:
+        """
+        使用LLM进行语义分割，让AI识别话题转换点
+        
+        算法：
+        1. 将文本按自然段落分割（双换行）
+        2. 提取每个段落的首句（控制token数量）
+        3. 调用LLM分析段落摘要，找出话题转换点
+        4. 根据LLM返回的切分点索引，合并段落
+        
+        参数：
+        - text: 要分割的文本
+        - target_word_count: 目标字数（用于计算理想分段数）
+        - api_key: Doubao API密钥
+        - tolerance: 字数浮动比例（默认0.1，即 ±10%）
+        
+        返回：
+        - 分割后的语义片段列表
+        """
+        if not text or not text.strip():
+            return []
+        
+        # 获取API密钥
+        if not api_key:
+            api_key = os.environ.get("DOUBAO_API_KEY") or load_setting("doubao_api_key", "")
+        
+        # 按自然段落分割（只用双换行，保持段落完整性）
+        # 先统一换行符，然后按双换行分割
+        normalized_text = re.sub(r'\r\n', '\n', text)
+        paragraphs = re.split(r'\n\s*\n', normalized_text)
+        paragraphs = [p.strip() for p in paragraphs if p.strip()]
+        
+        if len(paragraphs) <= 1:
+            return [text] if text.strip() else []
+        
+        # 如果段落太少，直接返回
+        if len(paragraphs) <= 3:
+            return paragraphs
+        
+        # 计算总字数和理想分段数
+        total_words = calculate_word_count(text)
+        ideal_num_segments = max(2, round(total_words / target_word_count))
+        min_range = int(target_word_count * (1 - tolerance))  # 如 2700
+        max_range = int(target_word_count * (1 + tolerance))  # 如 3300
+        
+        print(f"LLM语义分割：{len(paragraphs)} 个自然段落，总字数 {total_words}，目标分成 {ideal_num_segments} 段", flush=True)
+        print(f"目标字数范围：{min_range} ~ {max_range} 字（±{int(tolerance*100)}%）", flush=True)
+        
+        # 提取每个段落的首句（用于LLM分析）
+        def get_first_sentence(para: str, max_chars: int = 100) -> str:
+            """提取段落首句，限制长度"""
+            sentences = split_into_sentences(para)
+            if sentences:
+                first = sentences[0]
+                if len(first) > max_chars:
+                    return first[:max_chars] + "..."
+                return first
+            return para[:max_chars] + "..." if len(para) > max_chars else para
+        
+        # 构建段落摘要列表，同时计算累计字数
+        para_summaries = []
+        para_word_counts = []
+        cumulative_words = 0
+        for i, para in enumerate(paragraphs):
+            first_sent = get_first_sentence(para)
+            word_count = calculate_word_count(para)
+            cumulative_words += word_count
+            para_summaries.append(f"[{i+1}] ({word_count}字, 累计{cumulative_words}字) {first_sent}")
+            para_word_counts.append(word_count)
+        
+        # 构建LLM提示词
+        summaries_text = "\n".join(para_summaries)
+        
+        prompt = f"""你是一位专业的文章结构分析师。下面是一篇文章的段落摘要列表，每行格式为：[段落编号] (本段字数, 累计字数) 首句内容
+
+{summaries_text}
+
+请分析这些段落的语义关系，找出话题转换点（即内容主题发生明显变化的位置）。
+
+要求：
+1. 我需要将文章分成约 {ideal_num_segments} 个部分，每部分约 {target_word_count} 字
+2. 切分点应该在话题自然转换的地方，而不是机械地按字数切分
+3. 每个部分的字数应在 {min_range} ~ {max_range} 字之间（±{int(tolerance*100)}%浮动）
+4. 参考累计字数来判断切分位置是否合理
+
+请直接返回切分点的段落编号，格式如下（只返回这一行，不要其他内容）：
+切分点：8, 15, 23, 31
+
+注意：切分点表示"在该段落之前切分"，例如"切分点：8"表示第1-7段为第一部分，第8段开始为第二部分。"""
+
+        # 调用LLM
+        try:
+            import requests
+            base_url = "https://ark.cn-beijing.volces.com/api/v3"
+            endpoint = f"{base_url}/chat/completions"
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            
+            request_payload = {
+                "model": "doubao-seed-1-6-flash-250828",  # 使用快速模型
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "你是一个专业的文章结构分析师，擅长识别文章的话题转换点。请严格按照要求的格式返回结果。"
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.3,
+                "max_tokens": 200,
+            }
+            
+            print("调用LLM分析语义切分点...", flush=True)
+            response = requests.post(endpoint, headers=headers, json=request_payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            
+            if "choices" not in data or not data["choices"]:
+                raise RuntimeError("API未返回结果")
+            
+            message = data["choices"][0].get("message", {})
+            llm_response = message.get("content", "").strip()
+            print(f"LLM返回：{llm_response}", flush=True)
+            
+            # 解析切分点
+            split_points = _parse_split_points(llm_response, len(paragraphs))
+            
+            if not split_points:
+                print("LLM未返回有效切分点，使用备用算法", flush=True)
+                return semantic_segmentation(text)
+            
+            print(f"解析到切分点：{split_points}", flush=True)
+            
+            # 根据切分点合并段落
+            segments = []
+            start_idx = 0
+            for split_idx in split_points:
+                # split_idx 是从1开始的段落编号，表示"在该段落之前切分"
+                # 所以第一部分是 paragraphs[0:split_idx-1]
+                actual_idx = split_idx - 1  # 转换为0-based索引
+                if actual_idx > start_idx:
+                    segment = "\n\n".join(paragraphs[start_idx:actual_idx])
+                    if segment.strip():
+                        segments.append(segment.strip())
+                    start_idx = actual_idx
+            
+            # 添加最后一段
+            if start_idx < len(paragraphs):
+                segment = "\n\n".join(paragraphs[start_idx:])
+                if segment.strip():
+                    segments.append(segment.strip())
+            
+            # 打印分段结果
+            for idx, seg in enumerate(segments):
+                seg_words = calculate_word_count(seg)
+                print(f"  语义段 {idx+1}: {seg_words} 字", flush=True)
+            
+            return segments if segments else [text]
+            
+        except Exception as exc:
+            print(f"LLM语义分割失败: {exc}，使用备用算法", flush=True)
+            return semantic_segmentation(text)
+    
+    def _parse_split_points(llm_response: str, max_para_num: int) -> List[int]:
+        """
+        解析LLM返回的切分点
+        
+        支持的格式：
+        - "切分点：8, 15, 23, 31"
+        - "8, 15, 23, 31"
+        - "8，15，23，31"（中文逗号）
+        """
+        # 提取数字
+        # 先尝试找"切分点："后面的内容
+        match = re.search(r'切分点[：:]\s*(.+)', llm_response)
+        if match:
+            numbers_str = match.group(1)
+        else:
+            numbers_str = llm_response
+        
+        # 提取所有数字
+        numbers = re.findall(r'\d+', numbers_str)
+        
+        if not numbers:
+            return []
+        
+        # 转换为整数并过滤有效范围
+        split_points = []
+        for num_str in numbers:
+            try:
+                num = int(num_str)
+                # 切分点必须在有效范围内（2 到 max_para_num）
+                # 不能是第1段（那样第一部分就是空的）
+                if 2 <= num <= max_para_num:
+                    split_points.append(num)
+            except ValueError:
+                continue
+        
+        # 去重并排序
+        split_points = sorted(set(split_points))
+        
+        return split_points
+
+    def pack_segments_by_word_count(segments: List[str], target_word_count: int, tolerance: float = 0.1) -> List[str]:
+        """
+        使用动态规划将语义片段打包成均匀的段落
+        
+        参数：
+        - segments: 语义片段列表
+        - target_word_count: 目标字数（如 2000）
+        - tolerance: 允许的浮动比例（默认 0.1，即 ±10%）
+        
+        算法（动态规划）：
+        dp[i][j] = 将前 i 个片段分成 j 组的最小代价（方差）
+        代价 = Σ (每组字数 - 理想字数)²
+        通过回溯找到最优切分点
+        """
+        import math
+        
         if not segments:
             return []
         
-        packed = []
-        current_chunk = ""
-        current_count = 0
+        # 计算每个片段的字数
+        seg_counts = [calculate_word_count(seg) for seg in segments]
+        total_words = sum(seg_counts)
         
-        for segment in segments:
-            seg_count = calculate_word_count(segment)
-            
-            # 如果单个片段就超过限制，需要进一步分割
-            if seg_count > max_word_count:
-                # 先将当前chunk保存
-                if current_chunk:
-                    packed.append(current_chunk)
-                    current_chunk = ""
-                    current_count = 0
-                
-                # 对超长片段进行递归分割（按段落或句子）
-                # 简单策略：按段落分割
-                paragraphs = segment.split("\n\n")
-                for para in paragraphs:
-                    para_count = calculate_word_count(para)
-                    if para_count > max_word_count:
-                        # 段落还是太长，按句子分割
-                        sentences = split_into_sentences(para)
-                        for sent in sentences:
-                            sent_count = calculate_word_count(sent)
-                            if current_count + sent_count > max_word_count and current_chunk:
-                                packed.append(current_chunk)
-                                current_chunk = sent
-                                current_count = sent_count
-                            else:
-                                current_chunk += sent
-                                current_count += sent_count
-                    else:
-                        # 段落可以加入当前chunk
-                        if current_count + para_count > max_word_count and current_chunk:
-                            packed.append(current_chunk)
-                            current_chunk = para
-                            current_count = para_count
-                        else:
-                            if current_chunk:
-                                current_chunk += "\n\n" + para
-                            else:
-                                current_chunk = para
-                            current_count += para_count
+        # 计算允许的字数范围
+        min_chunk_size = int(target_word_count * (1 - tolerance))
+        max_chunk_size = int(target_word_count * (1 + tolerance))
+        
+        # 如果总字数不超过目标字数的上限，直接返回合并后的内容
+        if total_words <= max_chunk_size:
+            return ["\n\n".join(segments)]
+        
+        # 预处理：将超长片段拆分
+        processed_segments = []
+        processed_counts = []
+        for seg, count in zip(segments, seg_counts):
+            if count > max_chunk_size:
+                sub_segments = _split_long_segment(seg, target_word_count)
+                for sub_seg in sub_segments:
+                    processed_segments.append(sub_seg)
+                    processed_counts.append(calculate_word_count(sub_seg))
             else:
-                # 片段可以加入当前chunk
-                if current_count + seg_count > max_word_count and current_chunk:
-                    # 当前chunk已满，保存并开始新的
-                    packed.append(current_chunk)
-                    current_chunk = segment
-                    current_count = seg_count
-                else:
-                    # 加入当前chunk
-                    if current_chunk:
-                        current_chunk += "\n\n" + segment
-                    else:
-                        current_chunk = segment
-                    current_count += seg_count
+                processed_segments.append(seg)
+                processed_counts.append(count)
         
-        # 添加最后的chunk
-        if current_chunk:
-            packed.append(current_chunk)
+        # 计算累计字数（用于快速计算区间字数）
+        cumsum = [0]
+        for c in processed_counts:
+            cumsum.append(cumsum[-1] + c)
+        
+        n = len(processed_segments)
+        total_words = cumsum[n]
+        
+        # 计算理想分段数
+        min_chunks = math.ceil(total_words / max_chunk_size)
+        max_chunks = max(min_chunks, math.floor(total_words / min_chunk_size)) if min_chunk_size > 0 else min_chunks
+        ideal_num_chunks = max(min_chunks, min(max_chunks, round(total_words / target_word_count)))
+        
+        # 理想字数 = 总字数 / 分段数
+        ideal_chunk_size = total_words / ideal_num_chunks
+        
+        print(f"DP分段：总字数 {total_words}，目标 {target_word_count}，分段数 {ideal_num_chunks}，每段理想字数 {ideal_chunk_size:.0f}", flush=True)
+        print(f"允许范围：{min_chunk_size} ~ {max_chunk_size} 字", flush=True)
+        
+        k = ideal_num_chunks
+        
+        # 动态规划
+        # dp[i][j] = 将前 i 个片段分成 j 组的最小代价
+        # 代价 = (组字数 - ideal_chunk_size)²
+        INF = float('inf')
+        dp = [[INF] * (k + 1) for _ in range(n + 1)]
+        parent = [[(-1, -1)] * (k + 1) for _ in range(n + 1)]  # 记录最优切分点
+        
+        dp[0][0] = 0
+        
+        for i in range(1, n + 1):
+            for j in range(1, min(i, k) + 1):
+                # 枚举上一个切分点 p，即第 j 组是 [p+1, i]
+                for p in range(j - 1, i):
+                    if dp[p][j - 1] == INF:
+                        continue
+                    
+                    # 计算第 j 组的字数
+                    chunk_words = cumsum[i] - cumsum[p]
+                    
+                    # 计算代价（与理想字数的偏差平方）
+                    cost = (chunk_words - ideal_chunk_size) ** 2
+                    
+                    new_cost = dp[p][j - 1] + cost
+                    if new_cost < dp[i][j]:
+                        dp[i][j] = new_cost
+                        parent[i][j] = (p, j - 1)
+        
+        # 回溯找到最优切分点
+        split_points = []
+        curr_i, curr_j = n, k
+        while curr_j > 0:
+            p, prev_j = parent[curr_i][curr_j]
+            if p >= 0:
+                split_points.append(p)
+            curr_i, curr_j = p, prev_j
+        
+        split_points = sorted(split_points)
+        
+        # 根据切分点构建结果
+        packed = []
+        prev = 0
+        for sp in split_points:
+            if sp > prev:
+                chunk_text = "\n\n".join(processed_segments[prev:sp])
+                packed.append(chunk_text)
+                prev = sp
+        # 最后一段
+        if prev < n:
+            chunk_text = "\n\n".join(processed_segments[prev:n])
+            packed.append(chunk_text)
+        
+        # 打印分段结果
+        total_variance = 0
+        for idx, chunk in enumerate(packed):
+            chunk_count = calculate_word_count(chunk)
+            variance = (chunk_count - ideal_chunk_size) ** 2
+            total_variance += variance
+            status = "✓" if min_chunk_size <= chunk_count <= max_chunk_size else "⚠"
+            print(f"  段 {idx + 1}: {chunk_count} 字 {status}", flush=True)
+        
+        print(f"总方差: {total_variance:.0f}，标准差: {math.sqrt(total_variance / len(packed)):.1f} 字", flush=True)
         
         return packed
+    
+    def _split_long_segment(segment: str, target_word_count: int) -> List[str]:
+        """将超长片段按段落/句子分割成更小的片段"""
+        result = []
+        paragraphs = segment.split("\n\n")
+        
+        current = ""
+        current_count = 0
+        
+        for para in paragraphs:
+            para_count = calculate_word_count(para)
+            
+            if para_count > target_word_count:
+                # 段落太长，按句子分割
+                if current:
+                    result.append(current)
+                    current = ""
+                    current_count = 0
+                
+                sentences = split_into_sentences(para)
+                for sent in sentences:
+                    sent_count = calculate_word_count(sent)
+                    if current_count + sent_count > target_word_count and current:
+                        result.append(current)
+                        current = sent
+                        current_count = sent_count
+                    else:
+                        current += sent
+                        current_count += sent_count
+            else:
+                if current_count + para_count > target_word_count and current:
+                    result.append(current)
+                    current = para
+                    current_count = para_count
+                else:
+                    if current:
+                        current += "\n\n" + para
+                    else:
+                        current = para
+                    current_count += para_count
+        
+        if current:
+            result.append(current)
+        
+        return result if result else [segment]
 
     def split_article_into_segments(
         title: str,
         content: str,
         max_word_count: int = 10000,
         api_key: Optional[str] = None,
-        similarity_threshold: float = 0.3
+        use_llm_segmentation: bool = True
     ) -> List[Dict[str, Any]]:
         """
         将文章分割成多个段落，每个段落不超过指定字数，并为每个段落生成标题
@@ -6173,9 +6552,9 @@ D. ……
         输入参数：
         - title: str - 原文章标题
         - content: str - 原文章内容
-        - max_word_count: int - 每个段落的最大字数限制（去除空格后，默认10000）
+        - max_word_count: int - 每个段落的目标字数（去除空格后，默认10000）
         - api_key: Optional[str] - 用于生成标题的API密钥（如果为None，会尝试从环境变量获取）
-        - similarity_threshold: float - 语义分割的相似度阈值（默认0.3）
+        - use_llm_segmentation: bool - 是否使用LLM进行语义分割（默认True）
         
         输出：
         List[Dict[str, Any]] - 分割后的段落列表，每个字典包含：
@@ -6200,6 +6579,9 @@ D. ……
             if not api_key:
                 raise ValueError("缺少 DOUBAO_API_KEY，无法生成标题")
         
+        # 清理文本中不合理的换行
+        content = clean_text_line_breaks(content)
+        
         actual_word_count = calculate_word_count(content)
         
         # 如果文章字数不超过限制，直接返回（使用原标题）
@@ -6211,11 +6593,18 @@ D. ……
             }]
         
         # 第一步：使用语义分割技术切分成话题片段
-        print(f"开始语义分割：文章长度 {actual_word_count} 字，最大限制 {max_word_count} 字", flush=True)
-        semantic_segments = semantic_segmentation(content, similarity_threshold=similarity_threshold)
+        print(f"开始语义分割：文章长度 {actual_word_count} 字，目标字数 {max_word_count} 字", flush=True)
+        
+        if use_llm_segmentation:
+            # 使用LLM进行智能语义分割
+            semantic_segments = llm_semantic_segmentation(content, target_word_count=max_word_count, api_key=api_key)
+        else:
+            # 使用备用的词重叠算法
+            semantic_segments = semantic_segmentation(content)
+        
         print(f"语义分割完成：共 {len(semantic_segments)} 个话题片段", flush=True)
         
-        # 第二步：在话题片段基础上，按字数限制重新打包
+        # 第二步：在话题片段基础上，按字数限制重新打包（处理分割不够精细的情况）
         packed_chunks = pack_segments_by_word_count(semantic_segments, max_word_count)
         print(f"打包完成：共 {len(packed_chunks)} 个打包块", flush=True)
         

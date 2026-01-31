@@ -502,6 +502,21 @@
         background-color: rgba(15, 23, 42, 0.5);
         backdrop-filter: blur(4px);
       }
+
+      /* 工作流 Tab 样式 */
+      .workflow-tab {
+        background: #fff;
+      }
+      .workflow-tab:hover {
+        background: #f8fafc;
+      }
+      .workflow-tab.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+      .workflow-tab.active div:last-child {
+        color: rgba(255,255,255,0.8);
+      }
     </style>
   </head>
   <body>
@@ -522,7 +537,24 @@
     </nav>
 
     <h1>📚 一站式书籍处理工作流</h1>
-    <p class="subtitle">完整流程：上传文件 → 目录清洗 → 解析入库 → 重构目录 → 生成新书 → 新书入库</p>
+    <p class="subtitle">工作流一：书籍重构 | 工作流二：书籍解读</p>
+
+    <!-- 工作流切换 Tab -->
+    <div class="workflow-tabs" style="display: flex; gap: 0; margin-bottom: 24px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+      <div class="workflow-tab active" data-workflow="1" style="flex: 1; padding: 16px 20px; text-align: center; cursor: pointer; border-right: 1px solid #e2e8f0; transition: all 0.2s; font-weight: 600;">
+        <div style="font-size: 24px; margin-bottom: 4px;">📖</div>
+        <div>工作流一：书籍重构</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">上传 → 清洗 → 解析 → 重构 → 生成新书</div>
+      </div>
+      <div class="workflow-tab" data-workflow="2" style="flex: 1; padding: 16px 20px; text-align: center; cursor: pointer; transition: all 0.2s; font-weight: 600;">
+        <div style="font-size: 24px; margin-bottom: 4px;">📝</div>
+        <div>工作流二：书籍解读</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">选择书籍 → 选择章节 → 生成解读文章</div>
+      </div>
+    </div>
+
+    <!-- ==================== 工作流一：书籍重构 ==================== -->
+    <div id="workflow1" class="workflow-content">
 
     <!-- 步骤条 -->
     <div class="steps-bar">
@@ -667,6 +699,108 @@
       <div class="status" id="status6"></div>
     </section>
 
+    </div><!-- 工作流一结束 -->
+
+    <!-- ==================== 工作流二：书籍解读 ==================== -->
+    <div id="workflow2" class="workflow-content" style="display: none;">
+      
+      <!-- 步骤条 -->
+      <div class="steps-bar">
+        <div class="step-item active" data-step="w2-1"><div class="step-num">1</div><div class="step-name">选择书籍</div></div>
+        <div class="step-item" data-step="w2-2"><div class="step-num">2</div><div class="step-name">选择章节</div></div>
+        <div class="step-item" data-step="w2-3"><div class="step-num">3</div><div class="step-name">生成解读</div></div>
+      </div>
+
+      <!-- 步骤1: 选择书籍 -->
+      <section id="w2Panel1" class="panel">
+        <h2>📚 步骤1: 选择书籍</h2>
+        <div class="controls">
+          <div class="control-group primary">
+            <select id="w2BookSelect" style="flex: 1; min-width: 300px;">
+              <option value="">请选择已入库的书籍...</option>
+            </select>
+            <button id="w2RefreshBooks" style="background: #64748b;">🔄 刷新列表</button>
+          </div>
+        </div>
+        <div id="w2BookInfo" style="display: none; margin-top: 16px; padding: 16px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+          <div style="font-weight: 600; color: #166534;" id="w2BookTitle"></div>
+          <div style="font-size: 13px; color: #15803d; margin-top: 4px;" id="w2BookStats"></div>
+        </div>
+        <div class="status" id="w2Status1"></div>
+      </section>
+
+      <!-- 步骤2: 选择章节 -->
+      <section id="w2Panel2" class="panel hidden">
+        <h2>📑 步骤2: 选择章节</h2>
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">选择要解读的章节，或选择"全部章节"生成整本书的解读</p>
+        <div class="controls" style="margin-bottom: 16px;">
+          <select id="w2ChapterSelect" style="flex: 1; min-width: 400px;">
+            <option value="">请选择章节...</option>
+            <option value="all">📖 全部章节（生成整本书解读）</option>
+          </select>
+        </div>
+        <div id="w2ChapterInfo" style="display: none; margin-top: 16px; padding: 16px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+          <div style="font-weight: 600; color: #1e40af;" id="w2ChapterTitle"></div>
+          <div style="font-size: 13px; color: #1d4ed8; margin-top: 4px;" id="w2ChapterStats"></div>
+        </div>
+        <div class="status" id="w2Status2"></div>
+      </section>
+
+      <!-- 步骤3: 生成解读 -->
+      <section id="w2Panel3" class="panel hidden">
+        <h2>📝 步骤3: 生成解读文章</h2>
+        
+        <!-- 提示词配置（可折叠） -->
+        <details style="margin-bottom: 16px;">
+          <summary style="cursor: pointer; font-weight: 600; font-size: 14px; color: #475569; padding: 8px 0;">🔧 提示词配置（点击展开）</summary>
+          <div style="margin-top: 12px;">
+            <textarea id="w2PromptText" rows="15" style="width: 100%; font-size: 13px;"></textarea>
+            <div style="display: flex; gap: 12px; margin-top: 12px;">
+              <button class="secondary" onclick="w2ResetPrompt()" style="padding: 8px 16px; font-size: 13px;">🔄 重置为默认</button>
+              <button class="secondary" onclick="w2SavePrompt()" style="padding: 8px 16px; font-size: 13px;">💾 保存提示词</button>
+            </div>
+          </div>
+        </details>
+
+        <div class="controls">
+          <button id="w2GenerateBtn" disabled>🚀 生成解读文章</button>
+          <button id="w2GenerateAllBtn" style="background: #8b5cf6; display: none;" disabled>📚 生成全书解读</button>
+          <button id="w2CopyBtn" class="secondary" style="display: none;">📋 复制结果</button>
+        </div>
+        
+        <div id="w2ProgressWrapper" class="progress-wrapper" style="display: none;">
+          <div id="w2ProgressLabel" class="progress-label">准备中...</div>
+          <div class="progress-bar">
+            <div id="w2ProgressFill" class="progress-fill"></div>
+          </div>
+        </div>
+        
+        <div class="status" id="w2Status3"></div>
+        
+        <!-- 思考过程 -->
+        <details id="w2ThinkingBox" style="display: none; margin-top: 16px;">
+          <summary style="cursor: pointer; padding: 8px 12px; background: #fef3c7; border-radius: 6px; font-weight: 500; color: #92400e;">💭 查看思考过程</summary>
+          <div id="w2ThinkingContent" style="margin-top: 8px; padding: 12px; background: #fffbeb; border-radius: 6px; font-size: 13px; line-height: 1.7; color: #78350f; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></div>
+        </details>
+        
+        <!-- 解读结果 -->
+        <div id="w2ResultContainer" style="display: none; margin-top: 20px; padding: 24px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div id="w2ResultContent" style="line-height: 1.8; color: #1e293b; font-size: 15px;"></div>
+          <div id="w2ResultWordCount" style="font-size: 13px; color: #64748b; margin-top: 12px;"></div>
+        </div>
+        
+        <!-- 全书解读结果列表 -->
+        <div id="w2AllResultsContainer" style="display: none; margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0; font-size: 16px; color: #1e293b;">📚 全书解读结果</h3>
+            <button id="w2CopyAllBtn" class="secondary" style="padding: 8px 16px; font-size: 13px;">📋 复制全部</button>
+          </div>
+          <div id="w2AllResultsList"></div>
+        </div>
+      </section>
+
+    </div><!-- 工作流二结束 -->
+
     <!-- 目录对比弹窗 -->
     <dialog id="tocCompareDialog" style="max-width: 90vw; width: 1200px; padding: 0; border-radius: 12px;">
       <div style="padding: 24px; border-bottom: 1px solid #e2e8f0;">
@@ -759,8 +893,66 @@ Part 2：{主题名称}
 
 别做多余解释，也别重复给摘要，只要给出"主题名称 + 包含章节 + 主题摘要"就行。`;
 
+      // ===== 工作流二：书籍解读的默认提示词 =====
+      const DEFAULT_INTERPRETATION_PROMPT = `# Role: 顶级知识"解剖师"与畅销专栏作家
+
+## Profile
+你不仅仅是一个复述者，你是一位结合了**"费曼的降维打击能力"**、**"约瑟夫·舒格曼的滑梯文案技巧"**以及**"马尔科姆·格拉德威尔的叙事洞察力"**的顶尖内容解剖师。你的使命是将任何一段输入的书籍章节文本（无论多么枯燥或深奥），重铸为一篇让人"颅内高潮"的深度解读文章，需覆盖书籍章节的核心论点、关键案例、底层逻辑及实践价值四个核心维度，深度体现在对底层逻辑的通俗化拆解和实践价值的场景化延伸目标受众为25-40岁的职场人士与终身学习者，他们具备基础认知能力，追求知识的实用性与思想的启发性，偏好轻松易懂又不失深度的内容
+
+## Core Philosophy (核心心法)
+1.  **读者本位：** 读者很忙，也很懒。如果第一句话不能电到他，你就失败了。
+2.  **滑梯理论：** 每一段的结尾必须是下一段的诱饵。
+3.  **知识结晶：** 通俗不代表肤浅。必须用最浅显的语言，讲透最硬核的逻辑（Underlying Logic）。
+
+## Critical Workflow (执行流程)
+
+### Step 0: 深度思考与解构 (隐形步骤)
+**在正式写作前，你必须先在"大脑"中完成以下处理：**
+1.  **寻找冲突 (Find the Conflict)：** 原文推翻了哪个常识？解决了哪个痛点？或者揭示了什么残酷真相？这是你的切入点。
+2.  **提炼隐喻 (Design the Metaphor)：** 找到一个贯穿全文的强力比喻（如：将"博弈论"比作"胆小鬼游戏"，将"复利"比作"滚雪球"）。
+3.  **规划路标 (Structure the Arc)：** 确定 3-4 个核心转折点，并为它们设计像"电影片名"一样吸引人的小标题。
+
+### Step 1: 撰写正文 (执行标准)
+
+#### 1. 强力钩子 (The Hook) —— 拒绝废话
+* **禁止：** 绝对禁止使用"这篇文章讲了..."、"作者是..."这种摘要式开头。
+* **必须：** 直接从一个**反直觉的场景、一个扎心的问题、或一个颠覆性的结论**切入。
+* *示例：* "你以为努力就能成功？数据告诉你，这可能是个骗局。"
+
+#### 2. 搭建滑梯 (The Slide) —— 逻辑流
+* 使用**"悬念连接词" (Bucket Brigades)** 来粘合段落，如："但这还不是最糟糕的..."、"事实真相让人大吃一惊..."、"你可能会问..."。
+* 保持**对话感**，就像你在咖啡馆里对着朋友说话。多用"你"、"我们"。
+
+#### 3. 核心交付 (The Meat) —— 降维打击
+* **精准降维：** 遇到专业术语，必须立刻紧跟一个**生活化类比**。
+* **视觉高亮：** 也就是**加粗**。请将文中的**"金句"（能引发读者强烈共鸣的凝练表达）、"核心结论"（原文的关键主张或最终观点）或"转折点"（逻辑推导中改变认知方向的关键节点）**用Markdown加粗，方便读者扫读。但不要满篇加粗，每篇解读的加粗内容不超过8处
+* **严谨内核：** 所有的演绎必须严格服务于原作者的逻辑，严禁为了故事性而篡改原意。
+
+#### 4. 性感的小标题 (Subheadings)
+* **禁止：** 教科书式的标题（如"概念定义"、"案例分析"）。
+* **必须：** 带有悬念、冲突或画面感的小标题。
+* *示例：* 用"为什么'自断后路'才是顶级智慧？"代替"背水一战的策略分析"。
+
+#### 5. 强力收尾 (The Landing)
+* 用一句有力的金句收尾，或者给读者一个即刻可用的行动建议（Call to Action）。
+
+---
+
+## Input Data
+<书籍章节>
+{BOOK_CHAPTER}
+</书籍章节>
+
+## Output Generation
+请根据上述策略，在<解读>标签内输出解读内容。解读文章需控制在2000 - 2500字。
+
+**注意：** 不需要输出 Step 0 的思考过程，直接输出最终打磨好的、可以直接发布的深度解读文章。
+
+<解读>`;
+
       // ===== 全局状态 =====
       let currentStep = 1;
+      let currentWorkflow = 1; // 当前工作流：1=书籍重构，2=书籍解读
       let parsedEntries = [];
       let currentFilename = "";
       let cleanedTocData = null;
@@ -2159,9 +2351,418 @@ Part 2：{主题名称}
         }
       });
 
+      // ==================== 工作流二：书籍解读 ====================
+      
+      // 工作流二的状态
+      let w2SelectedBook = null;
+      let w2Chapters = [];
+      let w2SelectedChapterIndex = null;
+      let w2CurrentStep = 1;
+      let w2AllResults = []; // 存储全书解读结果
+
+      // 工作流二的 DOM 元素
+      const w2BookSelect = document.getElementById('w2BookSelect');
+      const w2ChapterSelect = document.getElementById('w2ChapterSelect');
+      const w2PromptText = document.getElementById('w2PromptText');
+      const w2GenerateBtn = document.getElementById('w2GenerateBtn');
+      const w2GenerateAllBtn = document.getElementById('w2GenerateAllBtn');
+      const w2CopyBtn = document.getElementById('w2CopyBtn');
+
+      // 工作流切换
+      document.querySelectorAll('.workflow-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const workflow = parseInt(tab.dataset.workflow);
+          switchWorkflow(workflow);
+        });
+      });
+
+      function switchWorkflow(workflow) {
+        currentWorkflow = workflow;
+        
+        // 更新 Tab 样式
+        document.querySelectorAll('.workflow-tab').forEach(t => {
+          t.classList.toggle('active', parseInt(t.dataset.workflow) === workflow);
+        });
+        
+        // 切换工作流内容
+        document.getElementById('workflow1').style.display = workflow === 1 ? 'block' : 'none';
+        document.getElementById('workflow2').style.display = workflow === 2 ? 'block' : 'none';
+        
+        // 如果切换到工作流二，加载书籍列表
+        if (workflow === 2 && w2BookSelect.options.length <= 1) {
+          w2LoadBooks();
+        }
+      }
+
+      // 工作流二：加载书籍列表
+      async function w2LoadBooks() {
+        renderStatus('w2Status1', '正在加载书籍列表...', 'info');
+        try {
+          const response = await fetch('/api/admin/books?page=1&per_page=100');
+          const data = await response.json();
+          if (data.error) throw new Error(data.error);
+          
+          const books = data.books || [];
+          w2BookSelect.innerHTML = '<option value="">请选择已入库的书籍...</option>';
+          books.forEach(book => {
+            const option = document.createElement('option');
+            option.value = book.id;
+            option.textContent = `${book.filename} (${book.chapter_count}章, ${(book.total_word_count || 0).toLocaleString()}字)`;
+            w2BookSelect.appendChild(option);
+          });
+          
+          document.getElementById('w2Status1').style.display = 'none';
+        } catch (error) {
+          renderStatus('w2Status1', `加载书籍失败: ${error.message}`, 'error');
+        }
+      }
+
+      // 工作流二：选择书籍
+      w2BookSelect.addEventListener('change', async (e) => {
+        const bookId = e.target.value;
+        if (!bookId) {
+          w2SelectedBook = null;
+          w2Chapters = [];
+          document.getElementById('w2BookInfo').style.display = 'none';
+          document.getElementById('w2Panel2').classList.add('hidden');
+          document.getElementById('w2Panel3').classList.add('hidden');
+          return;
+        }
+        
+        renderStatus('w2Status1', '正在加载书籍详情...', 'info');
+        try {
+          const response = await fetch(`/api/admin/books/${bookId}`);
+          const data = await response.json();
+          if (data.error) throw new Error(data.error);
+          
+          w2SelectedBook = data.book;
+          w2Chapters = data.chapters || [];
+          
+          // 显示书籍信息
+          document.getElementById('w2BookTitle').textContent = `📚 ${w2SelectedBook.filename}`;
+          document.getElementById('w2BookStats').textContent = `共 ${w2Chapters.length} 章，${(w2SelectedBook.total_word_count || 0).toLocaleString()} 字`;
+          document.getElementById('w2BookInfo').style.display = 'block';
+          
+          // 填充章节选择
+          w2ChapterSelect.innerHTML = '<option value="">请选择章节...</option>';
+          w2ChapterSelect.innerHTML += '<option value="all">📖 全部章节（生成整本书解读）</option>';
+          w2Chapters.forEach((chapter, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            const title = chapter.title_zh || chapter.title || `第${index + 1}章`;
+            const wordCount = chapter.word_count || 0;
+            option.textContent = `${index + 1}. ${title} (${wordCount.toLocaleString()}字)`;
+            w2ChapterSelect.appendChild(option);
+          });
+          
+          // 显示步骤2
+          document.getElementById('w2Panel2').classList.remove('hidden');
+          w2GoToStep(2);
+          
+          document.getElementById('w2Status1').style.display = 'none';
+        } catch (error) {
+          renderStatus('w2Status1', `加载书籍失败: ${error.message}`, 'error');
+        }
+      });
+
+      // 工作流二：选择章节
+      w2ChapterSelect.addEventListener('change', (e) => {
+        const value = e.target.value;
+        
+        if (value === '') {
+          w2SelectedChapterIndex = null;
+          document.getElementById('w2ChapterInfo').style.display = 'none';
+          document.getElementById('w2Panel3').classList.add('hidden');
+          w2GenerateBtn.style.display = 'inline-block';
+          w2GenerateAllBtn.style.display = 'none';
+          return;
+        }
+        
+        if (value === 'all') {
+          // 选择全部章节
+          w2SelectedChapterIndex = 'all';
+          document.getElementById('w2ChapterTitle').textContent = `📖 全部章节`;
+          const totalWords = w2Chapters.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
+          document.getElementById('w2ChapterStats').textContent = `共 ${w2Chapters.length} 章，${totalWords.toLocaleString()} 字`;
+          document.getElementById('w2ChapterInfo').style.display = 'block';
+          
+          // 显示全书解读按钮
+          w2GenerateBtn.style.display = 'none';
+          w2GenerateAllBtn.style.display = 'inline-block';
+          w2GenerateAllBtn.disabled = false;
+        } else {
+          // 选择单个章节
+          w2SelectedChapterIndex = parseInt(value);
+          const chapter = w2Chapters[w2SelectedChapterIndex];
+          const title = chapter.title_zh || chapter.title || `第${w2SelectedChapterIndex + 1}章`;
+          document.getElementById('w2ChapterTitle').textContent = `📑 ${title}`;
+          document.getElementById('w2ChapterStats').textContent = `${(chapter.word_count || 0).toLocaleString()} 字`;
+          document.getElementById('w2ChapterInfo').style.display = 'block';
+          
+          // 显示单章解读按钮
+          w2GenerateBtn.style.display = 'inline-block';
+          w2GenerateAllBtn.style.display = 'none';
+          w2GenerateBtn.disabled = false;
+        }
+        
+        // 显示步骤3
+        document.getElementById('w2Panel3').classList.remove('hidden');
+        w2GoToStep(3);
+      });
+
+      // 工作流二：步骤导航
+      function w2GoToStep(step) {
+        w2CurrentStep = step;
+        document.querySelectorAll('#workflow2 .step-item').forEach((item, index) => {
+          item.classList.remove('active', 'done');
+          if (index + 1 < step) item.classList.add('done');
+          else if (index + 1 === step) item.classList.add('active');
+        });
+      }
+
+      // 工作流二：加载提示词
+      function w2LoadPrompt() {
+        const saved = localStorage.getItem('w2InterpretationPrompt');
+        w2PromptText.value = saved || DEFAULT_INTERPRETATION_PROMPT;
+      }
+
+      // 工作流二：保存提示词
+      window.w2SavePrompt = function() {
+        localStorage.setItem('w2InterpretationPrompt', w2PromptText.value);
+        renderStatus('w2Status3', '提示词已保存', 'success');
+        setTimeout(() => { document.getElementById('w2Status3').style.display = 'none'; }, 2000);
+      };
+
+      // 工作流二：重置提示词
+      window.w2ResetPrompt = function() {
+        if (confirm('确定要重置为默认提示词吗？')) {
+          w2PromptText.value = DEFAULT_INTERPRETATION_PROMPT;
+          localStorage.removeItem('w2InterpretationPrompt');
+          renderStatus('w2Status3', '已重置为默认提示词', 'success');
+          setTimeout(() => { document.getElementById('w2Status3').style.display = 'none'; }, 2000);
+        }
+      };
+
+      // 工作流二：生成单章解读
+      w2GenerateBtn.addEventListener('click', async () => {
+        if (w2SelectedChapterIndex === null || w2SelectedChapterIndex === 'all') return;
+        
+        const chapter = w2Chapters[w2SelectedChapterIndex];
+        const content = chapter.content_zh || chapter.content || '';
+        if (!content.trim()) {
+          renderStatus('w2Status3', '章节内容为空，无法生成解读', 'error');
+          return;
+        }
+        
+        w2GenerateBtn.disabled = true;
+        w2GenerateBtn.innerHTML = '<span class="loading"></span>生成中...';
+        renderStatus('w2Status3', '正在调用深度思考模型生成解读文章，请稍候（约1-3分钟）...', 'info');
+        
+        // 隐藏之前的结果
+        document.getElementById('w2ResultContainer').style.display = 'none';
+        document.getElementById('w2ThinkingBox').style.display = 'none';
+        w2CopyBtn.style.display = 'none';
+        
+        try {
+          const prompt = w2PromptText.value.replace(/{BOOK_CHAPTER}/g, content);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 300000);
+          
+          const response = await fetch('/api/test/doubao-thinking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: prompt,
+              temperature: 0.3,
+              max_tokens: 16000,
+              model: 'doubao-seed-1.6-thinking-250715'
+            }),
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          // 显示思考过程
+          if (data.reasoning_content) {
+            document.getElementById('w2ThinkingContent').textContent = data.reasoning_content;
+            document.getElementById('w2ThinkingBox').style.display = 'block';
+          }
+          
+          // 提取解读内容
+          let interpretation = data.content || '';
+          interpretation = interpretation.replace(/<\/?解读>/g, '').trim();
+          
+          // 显示结果
+          document.getElementById('w2ResultContent').innerHTML = marked.parse(interpretation);
+          const wordCount = interpretation.replace(/\s+/g, '').length;
+          document.getElementById('w2ResultWordCount').textContent = `解读文章字数：${wordCount.toLocaleString()} 字`;
+          document.getElementById('w2ResultContainer').style.display = 'block';
+          w2CopyBtn.style.display = 'inline-block';
+          
+          renderStatus('w2Status3', `解读文章生成完成！共 ${wordCount.toLocaleString()} 字`, 'success');
+          
+        } catch (error) {
+          let errorMessage = '生成失败';
+          if (error.name === 'AbortError') {
+            errorMessage = '请求超时（超过5分钟），请稍后重试';
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          renderStatus('w2Status3', `生成失败: ${errorMessage}`, 'error');
+        } finally {
+          w2GenerateBtn.disabled = false;
+          w2GenerateBtn.textContent = '🚀 生成解读文章';
+        }
+      });
+
+      // 工作流二：生成全书解读
+      w2GenerateAllBtn.addEventListener('click', async () => {
+        if (w2SelectedChapterIndex !== 'all' || w2Chapters.length === 0) return;
+        
+        w2GenerateAllBtn.disabled = true;
+        w2GenerateAllBtn.innerHTML = '<span class="loading"></span>生成中...';
+        w2AllResults = [];
+        
+        // 显示进度条
+        const progressWrapper = document.getElementById('w2ProgressWrapper');
+        const progressFill = document.getElementById('w2ProgressFill');
+        const progressLabel = document.getElementById('w2ProgressLabel');
+        progressWrapper.style.display = 'block';
+        
+        // 隐藏之前的结果
+        document.getElementById('w2ResultContainer').style.display = 'none';
+        document.getElementById('w2ThinkingBox').style.display = 'none';
+        document.getElementById('w2AllResultsContainer').style.display = 'none';
+        
+        try {
+          for (let i = 0; i < w2Chapters.length; i++) {
+            const chapter = w2Chapters[i];
+            const content = chapter.content_zh || chapter.content || '';
+            const title = chapter.title_zh || chapter.title || `第${i + 1}章`;
+            
+            // 更新进度
+            const percent = Math.round(((i) / w2Chapters.length) * 100);
+            progressFill.style.width = `${percent}%`;
+            progressLabel.textContent = `正在生成第 ${i + 1}/${w2Chapters.length} 章：${title}`;
+            renderStatus('w2Status3', `正在生成第 ${i + 1}/${w2Chapters.length} 章的解读...`, 'info');
+            
+            if (!content.trim()) {
+              w2AllResults.push({ title, content: '（章节内容为空）', wordCount: 0 });
+              continue;
+            }
+            
+            const prompt = w2PromptText.value.replace(/{BOOK_CHAPTER}/g, content);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000);
+            
+            const response = await fetch('/api/test/doubao-thinking', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: prompt,
+                temperature: 0.3,
+                max_tokens: 16000,
+                model: 'doubao-seed-1.6-thinking-250715'
+              }),
+              signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              w2AllResults.push({ title, content: `生成失败: ${errorData.error || 'HTTP ' + response.status}`, wordCount: 0 });
+              continue;
+            }
+            
+            const data = await response.json();
+            let interpretation = data.content || '';
+            interpretation = interpretation.replace(/<\/?解读>/g, '').trim();
+            const wordCount = interpretation.replace(/\s+/g, '').length;
+            
+            w2AllResults.push({ title, content: interpretation, wordCount });
+          }
+          
+          // 完成
+          progressFill.style.width = '100%';
+          progressLabel.textContent = '全部完成！';
+          
+          // 显示全书解读结果
+          w2RenderAllResults();
+          document.getElementById('w2AllResultsContainer').style.display = 'block';
+          
+          const totalWords = w2AllResults.reduce((sum, r) => sum + r.wordCount, 0);
+          renderStatus('w2Status3', `全书解读生成完成！共 ${w2Chapters.length} 章，${totalWords.toLocaleString()} 字`, 'success');
+          
+        } catch (error) {
+          renderStatus('w2Status3', `生成失败: ${error.message}`, 'error');
+        } finally {
+          w2GenerateAllBtn.disabled = false;
+          w2GenerateAllBtn.textContent = '📚 生成全书解读';
+          setTimeout(() => { progressWrapper.style.display = 'none'; }, 2000);
+        }
+      });
+
+      // 工作流二：渲染全书解读结果
+      function w2RenderAllResults() {
+        const container = document.getElementById('w2AllResultsList');
+        let html = '';
+        
+        w2AllResults.forEach((result, index) => {
+          html += `<details style="margin-bottom: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">`;
+          html += `<summary style="padding: 12px 16px; cursor: pointer; font-weight: 600; color: #1e293b;">`;
+          html += `${index + 1}. ${escapeHtml(result.title)} <span style="font-weight: normal; color: #64748b;">(${result.wordCount.toLocaleString()}字)</span>`;
+          html += `</summary>`;
+          html += `<div style="padding: 16px; border-top: 1px solid #e2e8f0; line-height: 1.8; font-size: 14px;">`;
+          html += marked.parse(result.content);
+          html += `</div></details>`;
+        });
+        
+        container.innerHTML = html;
+      }
+
+      // 工作流二：复制单章结果
+      w2CopyBtn.addEventListener('click', () => {
+        const text = document.getElementById('w2ResultContent').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          const originalText = w2CopyBtn.textContent;
+          w2CopyBtn.textContent = '✅ 已复制';
+          setTimeout(() => { w2CopyBtn.textContent = originalText; }, 2000);
+        });
+      });
+
+      // 工作流二：复制全部结果
+      document.getElementById('w2CopyAllBtn')?.addEventListener('click', () => {
+        let allText = '';
+        w2AllResults.forEach((result, index) => {
+          allText += `## ${index + 1}. ${result.title}\n\n`;
+          allText += result.content + '\n\n---\n\n';
+        });
+        
+        navigator.clipboard.writeText(allText).then(() => {
+          const btn = document.getElementById('w2CopyAllBtn');
+          const originalText = btn.textContent;
+          btn.textContent = '✅ 已复制';
+          setTimeout(() => { btn.textContent = originalText; }, 2000);
+        });
+      });
+
+      // 工作流二：刷新书籍列表
+      document.getElementById('w2RefreshBooks')?.addEventListener('click', w2LoadBooks);
+
       // ===== 初始化 =====
       document.addEventListener("DOMContentLoaded", () => {
         goToStep(1);
+        w2LoadPrompt(); // 加载工作流二的提示词
         
         // 高亮当前导航
         const currentPath = window.location.pathname;
@@ -2175,5 +2776,6 @@ Part 2：{主题名称}
         });
       });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </body>
 </html>
